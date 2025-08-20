@@ -34,8 +34,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
     };
     
     const handleRun = () => {
-        // 여기에 실제 실행 로직을 추가할 수 있습니다.
-        // 예를 들어, 파일을 업로드하거나 LLM 생성을 요청하는 API 호출 등
+        // 여기에 실제 실행 로직을 추가할 수 있다. (예를 들어, 파일을 업로드하거나 LLM 생성을 요청하는 API 호출 등)
         console.log("Running RAG evaluation with settings:", {
             querySource,
             llmOption,

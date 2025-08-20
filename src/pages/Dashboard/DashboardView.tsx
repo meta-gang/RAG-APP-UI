@@ -5,7 +5,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Maximize2, ArrowLeft } from 'lucide-react';
 import * as S from './Dashboard.styled'; // Styled-components import
 
-// index.tsx 로부터 모든 상태와 핸들러 함수를 props로 내려받습니다.
+// index.tsx 로부터 모든 상태와 핸들러 함수를 props로 내려받는다.
 interface DashboardViewProps {
   isZoomed: boolean;
   selectedBarMetric: string | null;
@@ -24,7 +24,7 @@ interface DashboardViewProps {
   handleZoomOut: () => void;
 }
 
-// 이 컴포넌트는 props를 받아 화면을 그리는 역할만 합니다.
+// props를 받아 화면을 그리는 역할을 하는 컴포넌트
 export const DashboardView: React.FC<DashboardViewProps> = ({
     isZoomed,
     selectedBarMetric,

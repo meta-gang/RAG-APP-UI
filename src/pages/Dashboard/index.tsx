@@ -3,9 +3,9 @@
 import React, { useState, useMemo } from 'react';
 import { evaluationRuns } from '../../data/mockData';
 import { QueryEvaluation } from '../../globals/types';
-import { DashboardView } from './DashboardView'; // 뷰 컴포넌트를 import 합니다.
+import { DashboardView } from './DashboardView';
 
-// 이 파일은 이제 상태 관리와 데이터 가공 로직만 담당합니다.
+// 상태 관리와 데이터 가공 로직만 담당한다.
 export const DashboardPage: React.FC = () => {
     // ------------------- 상태 관리 (State) -------------------
     const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
@@ -179,7 +179,7 @@ export const DashboardPage: React.FC = () => {
     // ------------------- 렌더링 (Rendering) -------------------
     const moduleColors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#a4de6c", "#d0ed57"];
     
-    // View 컴포넌트에 모든 상태와 핸들러를 props로 전달합니다.
+    // View 컴포넌트에 모든 상태와 핸들러를 props로 전달한다.
     return (
         <DashboardView
             isZoomed={isZoomed}
