@@ -46,7 +46,6 @@ export const DashboardPage: React.FC = () => {
     }, []);
 
     const metricPerformanceBreakdownData = useMemo(() => {
-        // 최종 데이터 구조: { "Metric 이름": [{ date: "07-29", "모듈 이름": 점수 }, ...], ... }
         interface BreakdownEntry {
             date: string;
             [moduleName: string]: number | string;
@@ -57,27 +56,20 @@ export const DashboardPage: React.FC = () => {
             run.modules.forEach(module => {
                 module.queries.forEach(query => {
                     query.metrics.forEach(metric => {
-                        // 해당 metric에 대한 데이터가 없으면 초기화
                         if (!breakdown[metric.name]) {
                             breakdown[metric.name] = [];
                         }
-
-                        // 현재 날짜에 대한 데이터 항목을 찾거나 새로 생성
                         let dateEntry = breakdown[metric.name].find(d => d.date === run.date);
                         if (!dateEntry) {
                             dateEntry = { date: run.date };
                             breakdown[metric.name].push(dateEntry);
                         }
-
-                        // 해당 모듈의 점수를 기록 (동일 날짜, 동일 모듈에 여러 쿼리가 있을 경우 평균을 내야 하지만, 여기서는 간단하게 마지막 값으로 덮어씀)
-                        // 보다 정확한 구현을 위해서는 점수들을 배열로 모아 평균을 내는 로직이 필요합니다.
                         dateEntry[module.moduleName] = parseFloat((metric.score * 100).toFixed(2));
                     });
                 });
             });
         });
 
-        // 날짜 순으로 정렬
         Object.values(breakdown).forEach(dataArray => {
             dataArray.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         });
@@ -92,7 +84,7 @@ export const DashboardPage: React.FC = () => {
         .filter((s) => s !== undefined)
         .map((s) => s! * 100);
 
-        const bins = Array.from({ length: 11 }, (_, i) => i * 10); // [0, 10, ..., 100]
+        const bins = Array.from({ length: 11 }, (_, i) => i * 10);
         const freqMap = bins.slice(0, -1).map((binStart, i) => {
         const binEnd = bins[i + 1];
         const count = scores.filter((s) => s >= binStart && s < binEnd).length;
@@ -100,7 +92,7 @@ export const DashboardPage: React.FC = () => {
         });
 
         const lastBin = freqMap[freqMap.length - 1];
-        if (lastBin) { // lastBin이 존재하는지 확인
+        if (lastBin) {
             lastBin.count += scores.filter((s) => s === 100).length;
             lastBin.range = `90-100`;
         }
@@ -154,22 +146,25 @@ export const DashboardPage: React.FC = () => {
     }, [selectedModuleData, selectedBarMetric, selectedScoreRange]);
 
     const handleLineChartClick = (data: any) => {
+        // data 객체와 activePayload(클릭된 지점의 정보)가 유효한지 확인
         if (data && data.activePayload && data.activePayload.length > 0) {
-        const clickedDate = data.activePayload[0].payload.date;
-        const clickedModule = data.activePayload[0].dataKey;
+            const clickedDate = data.activePayload[0].payload.date; // 클릭된 데이터의 'date'
+            const clickedModule = data.activePayload[0].dataKey; // 클릭된 라인의 'moduleName'
 
-        const runExists = evaluationRuns.some(
-            (run) =>
-            run.date === clickedDate &&
-            run.modules.some((m) => m.moduleName === clickedModule)
-        );
-        if (!runExists) return;
+            // 혹시 모를 비정상적인 데이터 클릭 방지
+            const runExists = evaluationRuns.some(
+                (run) =>
+                run.date === clickedDate &&
+                run.modules.some((m) => m.moduleName === clickedModule)
+            );
+            if (!runExists) return;
 
-        setSelectedDate(clickedDate);
-        setSelectedModule(clickedModule);
-        setIsZoomed(false);
-        setSelectedBarMetric(null);
-        setSelectedScoreRange(null);
+            // 상태 업데이트 -> 이로 인해 오른쪽 패널이 리렌더링 됨
+            setSelectedDate(clickedDate);
+            setSelectedModule(clickedModule);
+            setIsZoomed(false);
+            setSelectedBarMetric(null);
+            setSelectedScoreRange(null);
         }
     };
 
@@ -180,9 +175,11 @@ export const DashboardPage: React.FC = () => {
     };
 
     const handleFrequencyBarClick = (data: any) => {
+        // data 객체와 range(점수 범위) 정보가 있는지 확인
         if (data && data.range) {
-        const [start, end] = data.range.split("-").map(Number);
-        setSelectedScoreRange([start, end]);
+            const [start, end] = data.range.split("-").map(Number);
+            // 점수 범위 상태 업데이트 -> 이로 인해 오른쪽 쿼리 목록이 필터링됨
+            setSelectedScoreRange([start, end]);
         }
     };
 
@@ -200,12 +197,7 @@ export const DashboardPage: React.FC = () => {
             </h2>
             <ResponsiveContainer width="100%" height={400}>
               {isZoomed ? (
-                <BarChart
-                  data={zoomedFrequencyData}
-                  onClick={(data) =>
-                    handleFrequencyBarClick(data?.activePayload?.[0]?.payload)
-                  }
-                >
+                <BarChart data={zoomedFrequencyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="range" stroke="#9CA3AF" />
                   <YAxis stroke="#9CA3AF" allowDecimals={false} />
@@ -215,12 +207,13 @@ export const DashboardPage: React.FC = () => {
                       borderColor: "#4B5563",
                     }}
                   />
-                  <Bar dataKey="count" name="Query Count" fill="#8884d8">
+                  <Bar dataKey="count" name="Query Count">
                     {zoomedFrequencyData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={moduleColors[index % moduleColors.length]}
                         cursor="pointer"
+                        onClick={() => handleFrequencyBarClick(entry)}
                       />
                     ))}
                   </Bar>
@@ -249,7 +242,7 @@ export const DashboardPage: React.FC = () => {
                         dataKey={moduleName}
                         stroke={moduleColors[index % moduleColors.length]}
                         strokeWidth={2}
-                        activeDot={{ r: 8 }}
+                        activeDot={{ r: 8, style: { cursor: 'pointer' } }}
                         connectNulls
                       />
                     ))}
@@ -372,7 +365,6 @@ export const DashboardPage: React.FC = () => {
           Metric Performance Breakdown
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* [수정된 부분 2] 새로운 데이터 구조를 올바르게 순회하도록 수정 */}
           {Object.entries(metricPerformanceBreakdownData).map(([metricName, data]) => (
             <div
               key={metricName}
@@ -393,7 +385,6 @@ export const DashboardPage: React.FC = () => {
                     }}
                   />
                   <Legend />
-                  {/* 데이터에 포함된 모듈 이름을 동적으로 찾아 Line을 생성 */}
                   {Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {})).filter(key => key !== 'date').map((moduleName, i) => (
                       <Line
                         key={moduleName}
