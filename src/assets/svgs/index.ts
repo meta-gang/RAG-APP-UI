@@ -1,0 +1,10 @@
+export { ReactComponent as chevron_left } from './Chevron-left.svg';
+export { ReactComponent as chevron_right } from './Chevron-right.svg';
+export { ReactComponent as plus } from './Plus.svg';
+export { ReactComponent as about_me } from './Person.svg';
+export { ReactComponent as menu } from './Menu.svg';
+export { ReactComponent as mypage } from './Mypage.svg';
+export { ReactComponent as email } from './Email.svg';
+export { ReactComponent as delete } from './Delete.svg';
+export { ReactComponent as history } from './History.svg';
+export { ReactComponent as chart } from './Chart.svg';
