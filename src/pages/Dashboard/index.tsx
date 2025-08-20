@@ -1,12 +1,10 @@
 // src/pages/Dashboard/index.tsx
 
-// 대시보드 페이지의 메인 로직과 UI를 담당
-
 import React, { useState, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { Maximize2, ArrowLeft } from 'lucide-react';
-import { evaluationRuns } from '../../data/mockData'; // 데이터 분리
-import { EvaluationRun, ModuleEvaluation, QueryEvaluation } from '../../globals/types'; // 타입 분리
+import { evaluationRuns } from '../../data/mockData';
+import { EvaluationRun, ModuleEvaluation, QueryEvaluation } from '../../globals/types';
 
 export const DashboardPage: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
@@ -145,21 +143,12 @@ export const DashboardPage: React.FC = () => {
         .sort((a, b) => b.score - a.score);
     }, [selectedModuleData, selectedBarMetric, selectedScoreRange]);
 
-    const handleLineChartClick = (data: any) => {
-        // data 객체와 activePayload(클릭된 지점의 정보)가 유효한지 확인
-        if (data && data.activePayload && data.activePayload.length > 0) {
-            const clickedDate = data.activePayload[0].payload.date; // 클릭된 데이터의 'date'
-            const clickedModule = data.activePayload[0].dataKey; // 클릭된 라인의 'moduleName'
-
-            // 혹시 모를 비정상적인 데이터 클릭 방지
-            const runExists = evaluationRuns.some(
-                (run) =>
-                run.date === clickedDate &&
-                run.modules.some((m) => m.moduleName === clickedModule)
-            );
-            if (!runExists) return;
-
-            // 상태 업데이트 -> 이로 인해 오른쪽 패널이 리렌더링 됨
+    const handleDotClick = (payload: any) => {
+        // payload 객체에서 날짜와 모듈 이름을 직접 추출
+        if (payload && payload.dataKey && payload.payload?.date) {
+            const clickedDate = payload.payload.date;
+            const clickedModule = payload.dataKey;
+            
             setSelectedDate(clickedDate);
             setSelectedModule(clickedModule);
             setIsZoomed(false);
@@ -175,10 +164,8 @@ export const DashboardPage: React.FC = () => {
     };
 
     const handleFrequencyBarClick = (data: any) => {
-        // data 객체와 range(점수 범위) 정보가 있는지 확인
         if (data && data.range) {
             const [start, end] = data.range.split("-").map(Number);
-            // 점수 범위 상태 업데이트 -> 이로 인해 오른쪽 쿼리 목록이 필터링됨
             setSelectedScoreRange([start, end]);
         }
     };
@@ -219,10 +206,7 @@ export const DashboardPage: React.FC = () => {
                   </Bar>
                 </BarChart>
               ) : (
-                <LineChart
-                  data={modulePerformanceData}
-                  onClick={handleLineChartClick}
-                >
+                <LineChart data={modulePerformanceData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="date" stroke="#9CA3AF" />
                   <YAxis stroke="#9CA3AF" domain={[60, 100]} />
@@ -242,7 +226,11 @@ export const DashboardPage: React.FC = () => {
                         dataKey={moduleName}
                         stroke={moduleColors[index % moduleColors.length]}
                         strokeWidth={2}
-                        activeDot={{ r: 8, style: { cursor: 'pointer' } }}
+                        activeDot={{ 
+                            onClick: (e, payload) => handleDotClick(payload), 
+                            r: 8, 
+                            style: { cursor: 'pointer' } 
+                        }}
                         connectNulls
                       />
                     ))}
