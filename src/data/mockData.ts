@@ -214,4 +214,9 @@ export const evaluationRuns: EvaluationRun[] = [
   },
 ];
 
-export const existingQueries = ["이전 LLM 생성 쿼리 1", "이전 LLM 생성 쿼리 2"];
+export const existingQueries = [
+    "What is RAG?",
+    "Explain LLM evaluation.",
+    "How does meta-gang work?",
+    "Show dashboard stats."
+];
