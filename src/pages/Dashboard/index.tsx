@@ -1,18 +1,20 @@
-// src/pages/Dashboard/index.tsx
+// /src/pages/Dashboard/index.tsx
 
 import React, { useState, useMemo } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { Maximize2, ArrowLeft } from 'lucide-react';
 import { evaluationRuns } from '../../data/mockData';
-import { EvaluationRun, ModuleEvaluation, QueryEvaluation } from '../../globals/types';
+import { QueryEvaluation } from '../../globals/types';
+import { DashboardView } from './DashboardView'; // 뷰 컴포넌트를 import 합니다.
 
+// 이 파일은 이제 상태 관리와 데이터 가공 로직만 담당합니다.
 export const DashboardPage: React.FC = () => {
+    // ------------------- 상태 관리 (State) -------------------
     const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
     const [selectedModule, setSelectedModule] = useState<string>(evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName);
     const [isZoomed, setIsZoomed] = useState(false);
     const [selectedBarMetric, setSelectedBarMetric] = useState<string | null>(null);
     const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
 
+    // ------------------- 데이터 가공 (Memoization) -------------------
     const selectedRun = useMemo(() => evaluationRuns.find((run) => run.date === selectedDate), [selectedDate]);
     const selectedModuleData = useMemo(() => selectedRun?.modules.find((m) => m.moduleName === selectedModule), [selectedRun, selectedModule]);
 
@@ -75,7 +77,6 @@ export const DashboardPage: React.FC = () => {
         return breakdown;
     }, []);
 
-
     const getFrequencyData = (queries: QueryEvaluation[], metricName: string) => {
         const scores = queries
         .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
@@ -94,7 +95,6 @@ export const DashboardPage: React.FC = () => {
             lastBin.count += scores.filter((s) => s === 100).length;
             lastBin.range = `90-100`;
         }
-
         return freqMap;
     };
 
@@ -143,8 +143,8 @@ export const DashboardPage: React.FC = () => {
         .sort((a, b) => b.score - a.score);
     }, [selectedModuleData, selectedBarMetric, selectedScoreRange]);
 
+    // ------------------- 이벤트 핸들러 (Event Handlers) -------------------
     const handleDotClick = (payload: any) => {
-        // payload 객체에서 날짜와 모듈 이름을 직접 추출
         if (payload && payload.dataKey && payload.payload?.date) {
             const clickedDate = payload.payload.date;
             const clickedModule = payload.dataKey;
@@ -162,6 +162,12 @@ export const DashboardPage: React.FC = () => {
         setSelectedBarMetric(metricName);
         setSelectedScoreRange(null);
     };
+    
+    const handleZoomOut = () => {
+        setIsZoomed(false);
+        setSelectedBarMetric(null);
+        setSelectedScoreRange(null);
+    };
 
     const handleFrequencyBarClick = (data: any) => {
         if (data && data.range) {
@@ -170,225 +176,27 @@ export const DashboardPage: React.FC = () => {
         }
     };
 
+    // ------------------- 렌더링 (Rendering) -------------------
     const moduleColors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#a4de6c", "#d0ed57"];
-
+    
+    // View 컴포넌트에 모든 상태와 핸들러를 props로 전달합니다.
     return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-full">
-            <h2 className="text-xl font-semibold text-white mb-4">
-              {isZoomed
-                ? `[Zoomed] ${selectedBarMetric} Score Distribution on ${selectedDate}`
-                : "RAG Performance Change"}
-            </h2>
-            <ResponsiveContainer width="100%" height={400}>
-              {isZoomed ? (
-                <BarChart data={zoomedFrequencyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="range" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1F2937",
-                      borderColor: "#4B5563",
-                    }}
-                  />
-                  <Bar dataKey="count" name="Query Count">
-                    {zoomedFrequencyData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={moduleColors[index % moduleColors.length]}
-                        cursor="pointer"
-                        onClick={() => handleFrequencyBarClick(entry)}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              ) : (
-                <LineChart data={modulePerformanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="date" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" domain={[60, 100]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1F2937",
-                      borderColor: "#4B5563",
-                    }}
-                  />
-                  <Legend />
-                  {Object.keys(modulePerformanceData[0] || {})
-                    .filter((k) => k !== "date")
-                    .map((moduleName, index) => (
-                      <Line
-                        key={moduleName}
-                        type="monotone"
-                        dataKey={moduleName}
-                        stroke={moduleColors[index % moduleColors.length]}
-                        strokeWidth={2}
-                        activeDot={{ 
-                            onClick: (e, payload) => handleDotClick(payload), 
-                            r: 8, 
-                            style: { cursor: 'pointer' } 
-                        }}
-                        connectNulls
-                      />
-                    ))}
-                </LineChart>
-              )}
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="lg:col-span-1">
-          <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 h-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2
-                className="text-xl font-semibold text-white truncate"
-                title={
-                  isZoomed
-                    ? `Queries for ${selectedBarMetric}`
-                    : `${selectedModule} on ${selectedDate}`
-                }
-              >
-                {isZoomed
-                  ? `Queries for ${selectedBarMetric}`
-                  : `${selectedModule} on ${selectedDate}`}
-              </h2>
-              {isZoomed && (
-                <button
-                  onClick={() => {
-                    setIsZoomed(false);
-                    setSelectedBarMetric(null);
-                    setSelectedScoreRange(null);
-                  }}
-                  className="text-gray-400 hover:text-white flex-shrink-0 ml-2"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-              )}
-            </div>
-            {isZoomed ? (
-              <div className="space-y-2 overflow-y-auto h-[370px] pr-2">
-                <p className="text-xs text-gray-400 pb-2">
-                  Showing {detailedQueryData?.length || 0} queries with scores in
-                  range:{" "}
-                  {selectedScoreRange
-                    ? `${selectedScoreRange[0]}-${selectedScoreRange[1]}`
-                    : "All"}
-                </p>
-                {detailedQueryData?.map((q, i) => (
-                  <div key={i} className="bg-gray-700 p-3 rounded-lg">
-                    <p
-                      className="text-sm font-semibold text-cyan-400 truncate"
-                      title={q.query}
-                    >
-                      Query: {q.query}
-                    </p>
-                    <div className="flex justify-between text-xs mt-1">
-                      <span className="text-gray-300">{selectedBarMetric}</span>
-                      <span className="font-mono text-white">
-                        {(q.score * 100).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4 overflow-y-auto h-[370px] pr-2">
-                {metricDistributionData.length > 0 ? (
-                  metricDistributionData.map((metric) => (
-                    <div key={metric.metricName}>
-                      <div className="flex justify-between items-center mb-1">
-                        <h3 className="text-md font-semibold text-white">
-                          {metric.metricName}
-                        </h3>
-                        <button
-                          onClick={() => handleZoomClick(metric.metricName)}
-                          className="text-gray-400 hover:text-white"
-                        >
-                          <Maximize2 size={16} />
-                        </button>
-                      </div>
-                      <ResponsiveContainer width="100%" height={100}>
-                        <BarChart data={metric.data}>
-                          <XAxis
-                            dataKey="range"
-                            stroke="#9CA3AF"
-                            fontSize={10}
-                            interval={1}
-                            angle={-30}
-                            textAnchor="end"
-                            height={40}
-                          />
-                          <YAxis
-                            stroke="#9CA3AF"
-                            allowDecimals={false}
-                            fontSize={10}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#1F2937",
-                              borderColor: "#4B5563",
-                              fontSize: 12,
-                            }}
-                          />
-                          <Bar dataKey="count" fill={moduleColors[2]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-gray-400 text-center pt-10">
-                    No metric data available for this module on this date.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="text-2xl font-semibold text-white mb-4">
-          Metric Performance Breakdown
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {Object.entries(metricPerformanceBreakdownData).map(([metricName, data]) => (
-            <div
-              key={metricName}
-              className="bg-gray-800 p-4 rounded-xl border border-gray-700"
-            >
-              <h3 className="text-lg font-semibold text-white mb-2">
-                {metricName}
-              </h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="date" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" domain={[80, 100]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1F2937",
-                      borderColor: "#4B5563",
-                    }}
-                  />
-                  <Legend />
-                  {Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {})).filter(key => key !== 'date').map((moduleName, i) => (
-                      <Line
-                        key={moduleName}
-                        type="monotone"
-                        dataKey={moduleName}
-                        stroke={moduleColors[i % moduleColors.length]}
-                        strokeWidth={2}
-                        connectNulls
-                      />
-                    ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+        <DashboardView
+            isZoomed={isZoomed}
+            selectedBarMetric={selectedBarMetric}
+            selectedDate={selectedDate}
+            selectedModule={selectedModule}
+            zoomedFrequencyData={zoomedFrequencyData}
+            modulePerformanceData={modulePerformanceData}
+            handleDotClick={handleDotClick}
+            handleFrequencyBarClick={handleFrequencyBarClick}
+            moduleColors={moduleColors}
+            detailedQueryData={detailedQueryData}
+            selectedScoreRange={selectedScoreRange}
+            metricDistributionData={metricDistributionData}
+            metricPerformanceBreakdownData={metricPerformanceBreakdownData}
+            handleZoomClick={handleZoomClick}
+            handleZoomOut={handleZoomOut}
+        />
     );
 };

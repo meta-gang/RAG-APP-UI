@@ -1,0 +1,127 @@
+// /src/pages/TestQuery/TestQuery.styled.ts
+import styled from 'styled-components';
+
+export const PageLayout = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem; // gap-6
+  height: calc(100vh - 200px);
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+`;
+
+export const Panel = styled.div`
+  background-color: #1f2937; // bg-gray-800
+  padding: 1rem;
+  border-radius: 0.75rem; // rounded-xl
+  border: 1px solid #374151; // border-gray-700
+`;
+
+export const FlowPanel = styled(Panel)`
+  @media (min-width: 768px) {
+    grid-column: span 1 / span 1;
+  }
+`;
+
+export const ChatPanel = styled(Panel)`
+  display: flex;
+  flex-direction: column;
+
+  @media (min-width: 768px) {
+    grid-column: span 2 / span 2;
+  }
+`;
+
+export const Title = styled.h2`
+  font-size: 1.25rem; // text-xl
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 1rem; // mb-4
+`;
+
+export const FlowList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; // space-y-3
+`;
+
+interface FlowItemProps {
+  isActive: boolean;
+}
+
+export const FlowItem = styled.div<FlowItemProps>`
+  padding: 1rem;
+  border-radius: 0.5rem; // rounded-lg
+  border-width: 2px;
+  transition: all 0.3s;
+  
+  border-color: ${props => props.isActive ? '#22d3ee' : '#4b5563'}; // border-cyan-400 or border-gray-600
+  background-color: ${props => props.isActive ? 'rgba(34, 211, 238, 0.15)' : '#374151'}; // bg-cyan-900/50 or bg-gray-700
+  box-shadow: ${props => props.isActive ? '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' : 'none'};
+  
+  span {
+    font-weight: 600;
+    color: #ffffff;
+  }
+`;
+
+export const MessageArea = styled.div`
+  flex-grow: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem; // space-y-4
+`;
+
+interface MessageWrapperProps {
+  sender: 'user' | 'bot';
+}
+
+export const MessageWrapper = styled.div<MessageWrapperProps>`
+  display: flex;
+  justify-content: ${props => props.sender === 'user' ? 'flex-end' : 'flex-start'};
+`;
+
+export const MessageBubble = styled.div<MessageWrapperProps>`
+  max-width: 80%; // max-w-xs lg:max-w-md
+  padding: 0.75rem;
+  border-radius: 0.5rem; // rounded-lg
+  background-color: ${props => props.sender === 'user' ? '#4f46e5' : '#374151'}; // bg-indigo-600 or bg-gray-700
+  color: ${props => props.sender === 'user' ? '#ffffff' : '#e5e7eb'}; // text-white or text-gray-200
+`;
+
+export const InputForm = styled.form`
+  padding: 1rem;
+  border-top: 1px solid #374151; // border-t border-gray-700
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; // space-x-2
+`;
+
+export const StyledInput = styled.input`
+  width: 100%;
+  background-color: #374151; // bg-gray-700
+  color: #ffffff;
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  border: none;
+
+  &:focus {
+    outline: 2px solid #4f46e5;
+  }
+`;
+
+export const SendButton = styled.button`
+  background-color: #4f46e5; // bg-indigo-600
+  color: #ffffff;
+  font-weight: 600;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  
+  &:hover {
+    background-color: #4338ca; // hover:bg-indigo-500
+  }
+`;

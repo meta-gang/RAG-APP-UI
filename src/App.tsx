@@ -1,10 +1,21 @@
-// 전체 애플리케이션의 진입점이자, 페이지를 전환하는 라우터(Router) 역할
-
+// src/App.tsx
 import React, { useState } from 'react';
+import styled from 'styled-components';
 import { Header } from '@components/Header';
 import { DashboardPage } from './pages/Dashboard';
 import { TestQueryPage } from './pages/TestQuery';
 import { SettingsPage } from './pages/Settings';
+import { GlobalStyle } from '@styles/GlobalStyle';
+
+// App.tsx 내부의 최상위 div 스타일링
+const AppContainer = styled.div`
+  max-width: 1600px; // max-w-screen-2xl 근사치
+  margin: 0 auto;
+`;
+
+const MainContent = styled.main`
+  margin-top: 1.5rem; // mt-6
+`;
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState("dashboard");
@@ -23,12 +34,13 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen font-sans p-4 sm:p-6 lg:p-8">
-      <div className="max-w-screen-2xl mx-auto">
+    <>
+      <GlobalStyle />
+      <AppContainer>
         <Header currentPage={currentPage} setCurrentPage={setCurrentPage} />
-        <main className="mt-6">{renderPage()}</main>
-      </div>
-    </div>
+        <MainContent>{renderPage()}</MainContent>
+      </AppContainer>
+    </>
   );
 };
 

@@ -18,15 +18,10 @@ module.exports = merge(common, {
   },
   module: {
     rules: [
-      // .css 파일을 위한 규칙
-      {
-        test: /\.css$/i,
-        use: ["style-loader", "css-loader", "postcss-loader"],
-      },
       // .scss와 .sass 파일을 위한 규칙
       {
         test: /\.(sa|sc)ss$/i,
-        use: ["style-loader", "css-loader", "postcss-loader", "sass-loader"],
+        use: ["style-loader", "css-loader", "sass-loader"],
       },
     ],
   },

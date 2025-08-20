@@ -1,3 +1,5 @@
+// /src/globals/styles/GlobalStyle.ts
+
 import { createGlobalStyle, styled } from "styled-components";
 import NotoSansBlack from "@assets/fonts/NotoSans-Black.woff2";
 import NotoSansBold from "@assets/fonts/NotoSans-Bold.woff2";
@@ -13,6 +15,21 @@ export const GlobalStyle = createGlobalStyle`
     padding: 0;
     box-sizing: border-box;
   }
+
+  body {
+    background-color: #111827; 
+    color: #F9FAFB;
+    font-family: sans-serif;
+    padding: 2rem;
+    
+    @media (max-width: 1024px) {
+      padding: 1.5rem;
+    }
+    @media (max-width: 640px) {
+      padding: 1rem;
+    }
+  }
+
   @font-face {
     font-family: 'NotoSansBlack';
     src: local('NotoSansBlack'), local('NotoSansBlack');
