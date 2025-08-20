@@ -1,3 +1,5 @@
+// src/pages/Dashboard/index.tsx
+
 // 대시보드 페이지의 메인 로직과 UI를 담당
 
 import React, { useState, useMemo } from 'react';
@@ -43,6 +45,44 @@ export const DashboardPage: React.FC = () => {
         return data;
     }, []);
 
+    // [수정된 부분 1] "Metric Performance Breakdown" 차트를 위한 데이터 가공 로직 추가
+    const metricPerformanceBreakdownData = useMemo(() => {
+        // 최종 데이터 구조: { "Metric 이름": [{ date: "07-29", "모듈 이름": 점수 }, ...], ... }
+        const breakdown: { [metricName: string]: { date: string, [moduleName: string]: number }[] } = {};
+
+        evaluationRuns.forEach(run => {
+            run.modules.forEach(module => {
+                module.queries.forEach(query => {
+                    query.metrics.forEach(metric => {
+                        // 해당 metric에 대한 데이터가 없으면 초기화
+                        if (!breakdown[metric.name]) {
+                            breakdown[metric.name] = [];
+                        }
+
+                        // 현재 날짜에 대한 데이터 항목을 찾거나 새로 생성
+                        let dateEntry = breakdown[metric.name].find(d => d.date === run.date);
+                        if (!dateEntry) {
+                            dateEntry = { date: run.date };
+                            breakdown[metric.name].push(dateEntry);
+                        }
+
+                        // 해당 모듈의 점수를 기록 (동일 날짜, 동일 모듈에 여러 쿼리가 있을 경우 평균을 내야 하지만, 여기서는 간단하게 마지막 값으로 덮어씀)
+                        // 보다 정확한 구현을 위해서는 점수들을 배열로 모아 평균을 내는 로직이 필요합니다.
+                        dateEntry[module.moduleName] = parseFloat((metric.score * 100).toFixed(2));
+                    });
+                });
+            });
+        });
+
+        // 날짜 순으로 정렬
+        Object.values(breakdown).forEach(dataArray => {
+            dataArray.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        });
+
+        return breakdown;
+    }, []);
+
+
     const getFrequencyData = (queries: QueryEvaluation[], metricName: string) => {
         const scores = queries
         .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
@@ -57,8 +97,10 @@ export const DashboardPage: React.FC = () => {
         });
 
         const lastBin = freqMap[freqMap.length - 1];
-        lastBin.count += scores.filter((s) => s === 100).length;
-        lastBin.range = `90-100`;
+        if (lastBin) { // lastBin이 존재하는지 확인
+            lastBin.count += scores.filter((s) => s === 100).length;
+            lastBin.range = `90-100`;
+        }
 
         return freqMap;
     };
@@ -244,13 +286,13 @@ export const DashboardPage: React.FC = () => {
             {isZoomed ? (
               <div className="space-y-2 overflow-y-auto h-[370px] pr-2">
                 <p className="text-xs text-gray-400 pb-2">
-                  Showing {detailedQueryData.length} queries with scores in
+                  Showing {detailedQueryData?.length || 0} queries with scores in
                   range:{" "}
                   {selectedScoreRange
                     ? `${selectedScoreRange[0]}-${selectedScoreRange[1]}`
                     : "All"}
                 </p>
-                {detailedQueryData.map((q, i) => (
+                {detailedQueryData?.map((q, i) => (
                   <div key={i} className="bg-gray-700 p-3 rounded-lg">
                     <p
                       className="text-sm font-semibold text-cyan-400 truncate"
@@ -327,7 +369,8 @@ export const DashboardPage: React.FC = () => {
           Metric Performance Breakdown
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {metricPerformanceData.map(([metricName, data]) => (
+          {/* [수정된 부분 2] 새로운 데이터 구조를 올바르게 순회하도록 수정 */}
+          {Object.entries(metricPerformanceBreakdownData).map(([metricName, data]) => (
             <div
               key={metricName}
               className="bg-gray-800 p-4 rounded-xl border border-gray-700"
@@ -347,9 +390,8 @@ export const DashboardPage: React.FC = () => {
                     }}
                   />
                   <Legend />
-                  {Object.keys(data[0] || {})
-                    .filter((key) => key !== "date")
-                    .map((moduleName, i) => (
+                  {/* 데이터에 포함된 모듈 이름을 동적으로 찾아 Line을 생성 */}
+                  {Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {})).filter(key => key !== 'date').map((moduleName, i) => (
                       <Line
                         key={moduleName}
                         type="monotone"

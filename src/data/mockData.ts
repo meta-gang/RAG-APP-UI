@@ -2,7 +2,7 @@
 
 import { EvaluationRun } from '../globals/types';
 
-const evaluationRuns: EvaluationRun[] = [
+export const evaluationRuns: EvaluationRun[] = [
   {
     date: "07-29",
     modules: [

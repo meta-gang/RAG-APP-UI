@@ -1,7 +1,7 @@
 // 전체 애플리케이션의 진입점이자, 페이지를 전환하는 라우터(Router) 역할
 
 import React, { useState } from 'react';
-import { Header } from 'src/components/Header'; // Header 컴포넌트 분리
+import { Header } from '@components/Header';
 import { DashboardPage } from './pages/Dashboard';
 import { TestQueryPage } from './pages/TestQuery';
 import { SettingsPage } from './pages/Settings';
