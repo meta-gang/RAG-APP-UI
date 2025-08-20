@@ -22,6 +22,7 @@ interface DashboardViewProps {
   metricPerformanceBreakdownData: Record<string, any[]>;
   handleZoomClick: (metricName: string) => void;
   handleZoomOut: () => void;
+  allModuleNames: string[];
 }
 
 // props를 받아 화면을 그리는 역할을 하는 컴포넌트
@@ -41,6 +42,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     metricPerformanceBreakdownData,
     handleZoomClick,
     handleZoomOut,
+    allModuleNames,
 }) => {
   return (
     <S.DashboardContainer>
@@ -89,21 +91,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <Legend />
                   {Object.keys(modulePerformanceData[0] || {})
                     .filter((k) => k !== "date")
-                    .map((moduleName, index) => (
-                      <Line
-                        key={moduleName}
-                        type="monotone"
-                        dataKey={moduleName}
-                        stroke={moduleColors[index % moduleColors.length]}
-                        strokeWidth={2}
-                        activeDot={{ 
-                            onClick: (e, payload) => handleDotClick(payload), 
-                            r: 8, 
-                            style: { cursor: 'pointer' } 
-                        }}
-                        connectNulls
-                      />
-                    ))}
+                      .map((moduleName) => {
+                        const colorIdx = allModuleNames.indexOf(moduleName);
+                        return (
+                          <Line
+                            key={moduleName}
+                            type="monotone"
+                            dataKey={moduleName}
+                            stroke={moduleColors[colorIdx % moduleColors.length]}
+                            strokeWidth={2}
+                            activeDot={{ 
+                                onClick: (e, payload) => handleDotClick(payload), 
+                                r: 8, 
+                                style: { cursor: 'pointer' } 
+                            }}
+                            connectNulls
+                          />
+                        );
+                      })}
                 </LineChart>
               )}
             </ResponsiveContainer>
@@ -220,16 +225,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     }}
                   />
                   <Legend />
-                  {Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {})).filter(key => key !== 'date').map((moduleName, i) => (
-                      <Line
-                        key={moduleName}
-                        type="monotone"
-                        dataKey={moduleName}
-                        stroke={moduleColors[i % moduleColors.length]}
-                        strokeWidth={2}
-                        connectNulls
-                      />
-                    ))}
+                  {Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {}))
+                    .filter(key => key !== 'date')
+                    .map((moduleName) => {
+                      const colorIdx = allModuleNames.indexOf(moduleName);
+                      return (
+                        <Line
+                          key={moduleName}
+                          type="monotone"
+                          dataKey={moduleName}
+                          stroke={moduleColors[colorIdx % moduleColors.length]}
+                          strokeWidth={2}
+                          connectNulls
+                        />
+                      );
+                    })}
                 </LineChart>
               </ResponsiveContainer>
             </S.ChartBox>

@@ -3,7 +3,6 @@ node_modules/
 dist
 package-lock.json
 volumes
-framework
 
 docker-compose.yml
 uv.lock

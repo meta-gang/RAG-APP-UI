@@ -1,7 +1,7 @@
 // /src/pages/Dashboard/index.tsx
 
 import React, { useState, useMemo } from 'react';
-import { evaluationRuns } from '../../data/mockData';
+import { evaluationRuns } from '../../data/mockData';   // 현재 mockData 디렉토리에서 임시 데이터를 가져옴
 import { QueryEvaluation } from '../../globals/types';
 import { DashboardView } from './DashboardView';
 
@@ -10,6 +10,16 @@ export const DashboardPage: React.FC = () => {
     // ------------------- 상태 관리 (State) -------------------
     const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
     const [selectedModule, setSelectedModule] = useState<string>(evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName);
+    
+    // 색상을 모듈 별로 고정하는 코드 / 모듈 순서대로 리스트를 만들고, 이 순서대로 색상이 고정됨
+    const allModuleNames = useMemo(() => {
+        const names = new Set<string>();
+        evaluationRuns.forEach(run => {
+            run.modules.forEach(module => names.add(module.moduleName));
+        });
+        return Array.from(names);
+    }, []);
+    
     const [isZoomed, setIsZoomed] = useState(false);
     const [selectedBarMetric, setSelectedBarMetric] = useState<string | null>(null);
     const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
@@ -30,6 +40,7 @@ export const DashboardPage: React.FC = () => {
             entry[module.moduleName] = 0;
             return;
             }
+            // 각 쿼리의 metric 별 평균 점수를 계산함 / 단순 평균은 종합 그래프로, 백분율 평균은 breakdown 그래프로
             const avgScore =
             module.queries.reduce((sum, q) => {
                 const metricCount = q.metrics.length;
@@ -197,6 +208,7 @@ export const DashboardPage: React.FC = () => {
             metricPerformanceBreakdownData={metricPerformanceBreakdownData}
             handleZoomClick={handleZoomClick}
             handleZoomOut={handleZoomOut}
+            allModuleNames={allModuleNames}
         />
     );
 };

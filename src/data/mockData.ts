@@ -2,6 +2,11 @@
 
 import { EvaluationRun } from '../globals/types';
 
+/*
+처음부터 모듈이 없다가 나중에 추가된 경우,
+RAG Evaluation Platform의 그래프에 해당 모듈의 성능 그래프가 나오지 않음
+*/
+
 export const evaluationRuns: EvaluationRun[] = [
   {
     date: "07-29",
@@ -13,17 +18,37 @@ export const evaluationRuns: EvaluationRun[] = [
             query: "Q1",
             answer: "A1",
             metrics: [
-              { name: "Context Precision", score: 0.91 },
-              { name: "Context Recall", score: 0.9 },
+              { name: "Metric1", score: 0.91 },
+              { name: "Metric2", score: 0.9 },
             ],
           },
           {
             query: "Q2",
             answer: "A2",
             metrics: [
-              { name: "Context Precision", score: 0.85 },
-              { name: "Context Recall", score: 0.88 },
+              { name: "Metric1", score: 0.85 },
+              { name: "Metric2", score: 0.88 },
             ],
+          },
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+          {
+            query: "RAG란 무엇인가?",
+            answer: "A1",
+            metrics: [{ name: "Metric1", score: 0.78 }],
+          },
+          {
+            query: "On-Premise의 장점은?",
+            answer: "A2",
+            metrics: [{ name: "Metric1", score: 0.85 }],
+          },
+          {
+            query: "LLM의 한계는?",
+            answer: "A3",
+            metrics: [{ name: "Metric1", score: 0.72 }],
           },
         ],
       },
@@ -34,16 +59,16 @@ export const evaluationRuns: EvaluationRun[] = [
             query: "Q1",
             answer: "A1",
             metrics: [
-              { name: "Faithfulness", score: 0.95 },
-              { name: "Answer Relevancy", score: 0.96 },
+              { name: "Metric2", score: 0.95 },
+              { name: "Metric3", score: 0.96 },
             ],
           },
           {
             query: "Q2",
             answer: "A2",
             metrics: [
-              { name: "Faithfulness", score: 0.92 },
-              { name: "Answer Relevancy", score: 0.94 },
+              { name: "Metric2", score: 0.92 },
+              { name: "Metric3", score: 0.94 },
             ],
           },
         ],
@@ -60,17 +85,41 @@ export const evaluationRuns: EvaluationRun[] = [
             query: "Q1",
             answer: "A1",
             metrics: [
-              { name: "Context Precision", score: 0.93 },
-              { name: "Context Recall", score: 0.92 },
+              { name: "Metric1", score: 0.72 },
+              { name: "Metric2", score: 0.84 },
+              { name: "Metric3", score: 0.93 },
+              { name: "Metric4", score: 0.92 },
             ],
           },
           {
             query: "Q2",
             answer: "A2",
             metrics: [
-              { name: "Context Precision", score: 0.88 },
-              { name: "Context Recall", score: 0.9 },
+              { name: "Metric1", score: 0.79 },
+              { name: "Metric2", score: 0.86 },
+              { name: "Metric3", score: 0.88 },
+              { name: "Metric4", score: 0.94 },
             ],
+          },
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+          {
+            query: "RAG란 무엇인가?",
+            answer: "A1",
+            metrics: [{ name: "Metric1", score: 0.78 }],
+          },
+          {
+            query: "On-Premise의 장점은?",
+            answer: "A2",
+            metrics: [{ name: "Metric1", score: 0.85 }],
+          },
+          {
+            query: "LLM의 한계는?",
+            answer: "A3",
+            metrics: [{ name: "Metric1", score: 0.72 }],
           },
         ],
       },
@@ -81,16 +130,16 @@ export const evaluationRuns: EvaluationRun[] = [
             query: "Q1",
             answer: "A1",
             metrics: [
-              { name: "Faithfulness", score: 0.96 },
-              { name: "Answer Relevancy", score: 0.97 },
+              { name: "Metric2", score: 0.96 },
+              { name: "Metric3", score: 0.97 },
             ],
           },
           {
             query: "Q2",
             answer: "A2",
             metrics: [
-              { name: "Faithfulness", score: 0.94 },
-              { name: "Answer Relevancy", score: 0.95 },
+              { name: "Metric2", score: 0.94 },
+              { name: "Metric3", score: 0.95 },
             ],
           },
         ],
@@ -107,48 +156,48 @@ export const evaluationRuns: EvaluationRun[] = [
             query: "RAG란 무엇인가?",
             answer: "A1",
             metrics: [
-              { name: "Context Precision", score: 0.95 },
-              { name: "Context Recall", score: 0.94 },
+              { name: "Metric3", score: 0.95 },
+              { name: "Metric4", score: 0.94 },
             ],
           },
           {
             query: "On-Premise의 장점은?",
             answer: "A2",
             metrics: [
-              { name: "Context Precision", score: 0.82 },
-              { name: "Context Recall", score: 0.91 },
+              { name: "Metric3", score: 0.82 },
+              { name: "Metric4", score: 0.91 },
             ],
           },
           {
             query: "LLM의 한계는?",
             answer: "A3",
             metrics: [
-              { name: "Context Precision", score: 0.75 },
-              { name: "Context Recall", score: 0.88 },
+              { name: "Metric3", score: 0.75 },
+              { name: "Metric4", score: 0.88 },
             ],
           },
           {
             query: "Fine-tuning이란?",
             answer: "A4",
             metrics: [
-              { name: "Context Precision", score: 0.98 },
-              { name: "Context Recall", score: 0.95 },
+              { name: "Metric3", score: 0.98 },
+              { name: "Metric4", score: 0.95 },
             ],
           },
           {
             query: "벡터 데이터베이스란?",
             answer: "A5",
             metrics: [
-              { name: "Context Precision", score: 0.89 },
-              { name: "Context Recall", score: 0.92 },
+              { name: "Metric3", score: 0.89 },
+              { name: "Metric4", score: 0.92 },
             ],
           },
           {
             query: "LangChain 사용법",
             answer: "A6",
             metrics: [
-              { name: "Context Precision", score: 0.65 },
-              { name: "Context Recall", score: 0.78 },
+              { name: "Metric3", score: 0.65 },
+              { name: "Metric4", score: 0.78 },
             ],
           },
         ],
@@ -159,17 +208,26 @@ export const evaluationRuns: EvaluationRun[] = [
           {
             query: "RAG란 무엇인가?",
             answer: "A1",
-            metrics: [{ name: "Diversity", score: 0.78 }],
+            metrics: [
+              { name: "Metric1", score: 0.78 },
+              { name: "Metric5", score: 0.71 },
+            ],
           },
           {
             query: "On-Premise의 장점은?",
             answer: "A2",
-            metrics: [{ name: "Diversity", score: 0.85 }],
+            metrics: [
+              { name: "Metric1", score: 0.85 },
+              { name: "Metric5", score: 0.75 },
+            ],
           },
           {
             query: "LLM의 한계는?",
             answer: "A3",
-            metrics: [{ name: "Diversity", score: 0.72 }],
+            metrics: [
+              { name: "Metric1", score: 0.72 },
+              { name: "Metric5", score: 0.68 },
+            ],
           },
         ],
       },
@@ -180,38 +238,190 @@ export const evaluationRuns: EvaluationRun[] = [
             query: "RAG란 무엇인가?",
             answer: "A1",
             metrics: [
-              { name: "Faithfulness", score: 0.98 },
-              { name: "Answer Relevancy", score: 0.99 },
+              { name: "Metric2", score: 0.98 },
+              { name: "Metric3", score: 0.99 },
             ],
           },
           {
             query: "On-Premise의 장점은?",
             answer: "A2",
             metrics: [
-              { name: "Faithfulness", score: 0.95 },
-              { name: "Answer Relevancy", score: 0.96 },
+              { name: "Metric2", score: 0.95 },
+              { name: "Metric3", score: 0.96 },
+              { name: "Metric6", score: 0.38 },
             ],
           },
           {
             query: "LLM의 한계는?",
             answer: "A3",
             metrics: [
-              { name: "Faithfulness", score: 0.88 },
-              { name: "Answer Relevancy", score: 0.92 },
+              { name: "Metric2", score: 0.88 },
+              { name: "Metric3", score: 0.92 },
+              { name: "Metric6", score: 0.42 },
             ],
           },
           {
             query: "Fine-tuning이란?",
             answer: "A4",
             metrics: [
-              { name: "Faithfulness", score: 0.99 },
-              { name: "Answer Relevancy", score: 0.98 },
+              { name: "Metric2", score: 0.99 },
+              { name: "Metric3", score: 0.98 },
+              { name: "Metric6", score: 0.44 },
             ],
           },
         ],
       },
     ],
   },
+  //
+
+  {
+    date: "08-19",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+          {
+            query: "RAG란 무엇인가?",
+            answer: "A1",
+            metrics: [
+              { name: "Metric1", score: 0.43 },
+              { name: "Metric2", score: 0.55 },
+              { name: "Metric3", score: 0.72 },
+              { name: "Metric4", score: 0.94 },
+            ],
+          },
+          {
+            query: "On-Premise의 장점은?",
+            answer: "A2",
+            metrics: [
+              { name: "Metric1", score: 0.82 },
+              { name: "Metric2", score: 0.91 },
+              { name: "Metric3", score: 0.75 },
+              { name: "Metric4", score: 0.93 },
+            ],
+          },
+          {
+            query: "LLM의 한계는?",
+            answer: "A3",
+            metrics: [
+              { name: "Metric1", score: 0.55 },
+              { name: "Metric2", score: 0.68 },
+              { name: "Metric3", score: 0.75 },
+              { name: "Metric4", score: 0.88 },
+            ],
+          },
+          {
+            query: "Fine-tuning이란?",
+            answer: "A4",
+            metrics: [
+              { name: "Metric1", score: 0.98 },
+              { name: "Metric2", score: 0.95 },
+              { name: "Metric3", score: 0.44 },
+              { name: "Metric4", score: 0.99 },
+            ],
+          },
+          {
+            query: "벡터 데이터베이스란?",
+            answer: "A5",
+            metrics: [
+              { name: "Metric1", score: 0.89 },
+              { name: "Metric2", score: 0.92 },
+              { name: "Metric3", score: 0.78 },
+              { name: "Metric4", score: 0.88 },
+            ],
+          },
+          {
+            query: "LangChain 사용법",
+            answer: "A6",
+            metrics: [
+              { name: "Metric1", score: 0.65 },
+              { name: "Metric2", score: 0.78 },
+              { name: "Metric3", score: 0.82 },
+              { name: "Metric4", score: 0.90 },
+            ],
+          },
+          {
+            query: "서울의 수도는?",
+            answer: "A7",
+            metrics: [
+              { name: "Metric1", score: 0.31 },
+              { name: "Metric2", score: 0.20 },
+              { name: "Metric3", score: 0.43 },
+              { name: "Metric4", score: 0.55 },
+            ],
+          },
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+          {
+            query: "RAG란 무엇인가?",
+            answer: "A1",
+            metrics: [
+              { name: "Metric1", score: 0.78 },
+              { name: "Metric5", score: 0.66 },
+            ],
+          },
+          {
+            query: "On-Premise의 장점은?",
+            answer: "A2",
+            metrics: [
+              { name: "Metric1", score: 0.85 },
+              { name: "Metric5", score: 0.77 },
+            ],
+          },
+          {
+            query: "LLM의 한계는?",
+            answer: "A3",
+            metrics: [
+              { name: "Metric1", score: 0.72 },
+              { name: "Metric5", score: 0.88 },
+            ],
+          },
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+          {
+            query: "RAG가 뭐야?",
+            answer: "A1",
+            metrics: [
+              { name: "Metric2", score: 0.77 },
+              { name: "Metric3", score: 0.88 },
+            ],
+          },
+          {
+            query: "On-Premise의 장단점은?",
+            answer: "A2",
+            metrics: [
+              { name: "Metric2", score: 0.82 },
+              { name: "Metric3", score: 0.90 },
+            ],
+          },
+          {
+            query: "LLM의 한계가 뭐야?",
+            answer: "A3",
+            metrics: [
+              { name: "Metric2", score: 0.90 },
+              { name: "Metric3", score: 0.72 },
+            ],
+          },
+          {
+            query: "Fine-tuning이란?",
+            answer: "A4",
+            metrics: [
+              { name: "Metric2", score: 0.96 },
+              { name: "Metric3", score: 0.85 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  //
 ];
 
 export const existingQueries = [
