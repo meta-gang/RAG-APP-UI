@@ -45,10 +45,13 @@ export const DashboardPage: React.FC = () => {
         return data;
     }, []);
 
-    // [수정된 부분 1] "Metric Performance Breakdown" 차트를 위한 데이터 가공 로직 추가
     const metricPerformanceBreakdownData = useMemo(() => {
         // 최종 데이터 구조: { "Metric 이름": [{ date: "07-29", "모듈 이름": 점수 }, ...], ... }
-        const breakdown: { [metricName: string]: { date: string, [moduleName: string]: number }[] } = {};
+        interface BreakdownEntry {
+            date: string;
+            [moduleName: string]: number | string;
+        }
+        const breakdown: { [metricName: string]: BreakdownEntry[] } = {};
 
         evaluationRuns.forEach(run => {
             run.modules.forEach(module => {

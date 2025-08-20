@@ -7,14 +7,15 @@ import {
   StyledToggleView,
 } from './ToggleView.styled';
 
-interface IToggleView {
+interface ToggleViewProps {
   label?: string;
   children?: ReactNode;
   disabled: boolean;
   onClick?: () => void;
 }
 
-export const ToggleView = ({ label, children, disabled, onClick }: IToggleView) => {
+
+export const ToggleView = ({ label, children, disabled, onClick }: ToggleViewProps) => {
   return disabled ? (
     <StyledDisabledToggleView onClick={onClick}>
       {onClick ? <OnClickLabel>{label}</OnClickLabel> : <StyledDisabledLabel>{label}</StyledDisabledLabel>}

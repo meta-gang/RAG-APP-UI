@@ -1,11 +1,12 @@
 import { ReactNode } from 'react';
 import { Container } from './ScrollBar.styled';
 
-interface IScrollBar {
+interface ScrollBarProps {
   children: ReactNode;
 }
 
-export const ScrollBar = ({ children }: IScrollBar) => {
+
+export const ScrollBar = ({ children }: ScrollBarProps) => {
   return (
     <Container>
       {children}

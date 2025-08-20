@@ -17,13 +17,19 @@ module.exports = merge(common, {
   },
   module: {
     rules: [
+      // .css 파일을 위한 규칙
+      {
+        test: /\.css$/i,
+        use: [MiniCssExtractPlugin.loader, "css-loader", "postcss-loader"],
+      },
+      // .scss와 .sass 파일을 위한 규칙
       {
         test: /\.(sa|sc|c)ss$/i,
         use: [
           MiniCssExtractPlugin.loader,
           "css-loader",
-          "sass-loader",
           "postcss-loader",
+          "sass-loader",
         ],
       },
     ],
