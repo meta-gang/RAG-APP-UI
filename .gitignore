@@ -2,3 +2,6 @@ node_modules/
 .env
 dist
 package-lock.json
+volumes
+docker-compose.yml
+uv.lock
