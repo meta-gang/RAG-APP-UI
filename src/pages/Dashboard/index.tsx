@@ -27,11 +27,36 @@ export const DashboardPage: React.FC = () => {
     const selectedModuleData = useMemo(() => selectedRun?.modules.find((m) => m.moduleName === selectedModule), [selectedRun, selectedModule]);
 
     const modulePerformanceData = useMemo(() => {
-        const data: { date: string; [key: string]: number | string }[] = [];
+        const data: { date: string; [key: string]: number | string | null }[] = [];
         evaluationRuns.forEach((run) => {
-        const entry: { date: string; [key: string]: number | string } = {
+        const entry: { date: string; [key: string]: number | string | null } = {
             date: run.date,
         };
+        allModuleNames.forEach((moduleName) => {
+            const module = run.modules.find((m) => m.moduleName === moduleName);
+            // 만약 어떤 모듈이 없으면 null로 초기화 -> 처음에 없다가 나중에 모듈이 추가돼도 그래프 그려지게 함
+            if (!module) {
+                entry[moduleName] = null;
+            } else {
+                const totalQueries = module.queries.length;
+                // 모듈은 있는데 쿼리는 없는 경우 해당 모듈의 점수 0점으로 처리
+                if (totalQueries === 0) {
+                entry[moduleName] = 0;
+                } else {
+                // 각 쿼리의 metric 별 평균 점수를 계산함 / 단순 평균은 종합 그래프로, 백분율 평균은 breakdown 그래프로
+                const avgScore =
+                    module.queries.reduce((sum, q) => {
+                    const metricCount = q.metrics.length;
+                    if (metricCount === 0) return sum;
+                    return sum + q.metrics.reduce((s, m) => s + m.score, 0) / metricCount;
+                    }, 0) / totalQueries;
+                entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
+                }
+            }
+            });
+            data.push(entry);
+        
+        /*
         run.modules.forEach((module) => {
             const totalQueries = module.queries.length;
             if (totalQueries === 0) {
@@ -50,6 +75,7 @@ export const DashboardPage: React.FC = () => {
             entry[module.moduleName] = parseFloat((avgScore * 100).toFixed(2));
         });
         data.push(entry);
+        */
         });
         return data;
     }, []);

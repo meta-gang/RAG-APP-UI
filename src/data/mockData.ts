@@ -32,26 +32,7 @@ export const evaluationRuns: EvaluationRun[] = [
           },
         ],
       },
-      {
-        moduleName: "MyPostRetrievalModule",
-        queries: [
-          {
-            query: "RAG란 무엇인가?",
-            answer: "A1",
-            metrics: [{ name: "Metric1", score: 0.78 }],
-          },
-          {
-            query: "On-Premise의 장점은?",
-            answer: "A2",
-            metrics: [{ name: "Metric1", score: 0.85 }],
-          },
-          {
-            query: "LLM의 한계는?",
-            answer: "A3",
-            metrics: [{ name: "Metric1", score: 0.72 }],
-          },
-        ],
-      },
+      
       {
         moduleName: "MyGenerationModule",
         queries: [
@@ -202,6 +183,7 @@ export const evaluationRuns: EvaluationRun[] = [
           },
         ],
       },
+      /*
       {
         moduleName: "MyPostRetrievalModule",
         queries: [
@@ -231,6 +213,7 @@ export const evaluationRuns: EvaluationRun[] = [
           },
         ],
       },
+      */
       {
         moduleName: "MyGenerationModule",
         queries: [
@@ -273,8 +256,6 @@ export const evaluationRuns: EvaluationRun[] = [
       },
     ],
   },
-  //
-
   {
     date: "08-19",
     modules: [
@@ -421,7 +402,414 @@ export const evaluationRuns: EvaluationRun[] = [
       },
     ],
   },
-  //
+  {
+    date: "08-26",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "09-02",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "09-09",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "09-16",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "09-23",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "09-30",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "10-07",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "10-16",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
+  {
+    date: "10-23",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "10-30",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "11-06",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "11-13",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "11-20",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "11-27",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "12-04",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "12-11",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "12-18",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "12-25",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "01-02",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "01-09",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },{
+    date: "01-16",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+        ],
+      },
+    ],
+  },
 ];
 
 export const existingQueries = [
