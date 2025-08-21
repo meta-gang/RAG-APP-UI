@@ -3,5 +3,7 @@ node_modules/
 dist
 package-lock.json
 volumes
+
 docker-compose.yml
 uv.lock
+mockData.ts
