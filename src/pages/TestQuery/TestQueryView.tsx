@@ -7,13 +7,18 @@ interface TestQueryViewProps {
   activeModule: string | null;
   messages: { sender: "user" | "bot"; text: string }[];
   handleSendMessage: (e: React.FormEvent<HTMLFormElement>) => void;
+  metrics: {
+    moduleName: string;
+    metrics: {name: string, score: number}[];
+  }[];
 }
 
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
   pipeline,
   activeModule,
   messages,
-  handleSendMessage
+  handleSendMessage,
+  metrics
 }) => {
   return (
     <S.PageLayout>
@@ -48,6 +53,19 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
           </S.SendButton>
         </S.InputForm>
       </S.ChatPanel>
+      <S.ResultPanel>
+        <S.Title>Evaluation Result</S.Title>
+        <S.EvaluationTable>
+          {metrics.map((moduleData, moduleIndex) => 
+            moduleData.metrics.map((metric, metricIndex) => (
+              <S.TableRow key={`${moduleIndex}-${metricIndex}`}>
+                <span>{moduleData.moduleName} - {metric.name}</span>
+                <span>{(metric.score * 100).toFixed(1)}</span>
+              </S.TableRow>
+            ))
+          )}
+        </S.EvaluationTable>
+      </S.ResultPanel>
     </S.PageLayout>
   );
 };

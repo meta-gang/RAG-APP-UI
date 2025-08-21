@@ -2,11 +2,6 @@
 
 import { EvaluationRun } from '../globals/types';
 
-/*
-처음부터 모듈이 없다가 나중에 추가된 경우,
-RAG Evaluation Platform의 그래프에 해당 모듈의 성능 그래프가 나오지 않음
-*/
-
 export const evaluationRuns: EvaluationRun[] = [
   {
     date: "07-29",
@@ -19,7 +14,7 @@ export const evaluationRuns: EvaluationRun[] = [
             answer: "A1",
             metrics: [
               { name: "Metric1", score: 0.91 },
-              { name: "Metric2", score: 0.9 },
+              { name: "Metric2", score: 0.96 },
             ],
           },
           {

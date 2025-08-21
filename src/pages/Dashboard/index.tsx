@@ -36,7 +36,7 @@ export const DashboardPage: React.FC = () => {
             const module = run.modules.find((m) => m.moduleName === moduleName);
             // 만약 어떤 모듈이 없으면 null로 초기화 -> 처음에 없다가 나중에 모듈이 추가돼도 그래프 그려지게 함
             if (!module) {
-                entry[moduleName] = null;
+                entry[moduleName] = null; // 또는 null
             } else {
                 const totalQueries = module.queries.length;
                 // 모듈은 있는데 쿼리는 없는 경우 해당 모듈의 점수 0점으로 처리

@@ -9,6 +9,7 @@ export const PageLayout = styled.div`
 
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr; // 상단 2/3, 하단 1/3 비율로 분할
   }
 `;
 
@@ -18,10 +19,17 @@ export const Panel = styled.div`
   border-radius: 0.75rem; // rounded-xl
   border: 1px solid #374151; // border-gray-700
 `;
-
+/*
 export const FlowPanel = styled(Panel)`
   @media (min-width: 768px) {
     grid-column: span 1 / span 1;
+  }
+`;
+*/
+export const FlowPanel = styled(Panel)`
+  @media (min-width: 768px) {
+    grid-column: span 1 / span 1;
+    grid-row: 1; // 첫 번째 행에 위치
   }
 `;
 
@@ -31,6 +39,14 @@ export const ChatPanel = styled(Panel)`
 
   @media (min-width: 768px) {
     grid-column: span 2 / span 2;
+    grid-row: 1; // 첫 번째 행에 위치
+  }
+`;
+
+export const ResultPanel = styled(Panel)`
+  @media (min-width: 768px) {
+    grid-column: 1 / -1; // 전체 너비 사용
+    grid-row: 2; // 두 번째 행에 위치
   }
 `;
 
@@ -45,6 +61,22 @@ export const FlowList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.75rem; // space-y-3
+
+  overflow-x: auto;
+  max-height: calc(100% - 3rem);
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+  }
 `;
 
 interface FlowItemProps {
@@ -64,6 +96,44 @@ export const FlowItem = styled.div<FlowItemProps>`
   span {
     font-weight: 600;
     color: #ffffff;
+  }
+`;
+
+export const EvaluationTable = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: calc(100% - 3rem); // Title 영역 제외한 높이
+  overflow-y: auto;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+  }
+`;
+
+export const TableRow = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  padding: 0.5rem;
+  background-color: #374151;
+  border-radius: 0.375rem;
+  
+  span {
+    color: #e5e7eb;
+    
+    &:last-child {
+      text-align: right;
+      font-family: monospace;
+    }
   }
 `;
 

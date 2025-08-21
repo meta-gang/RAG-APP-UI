@@ -7,3 +7,4 @@ volumes
 docker-compose.yml
 uv.lock
 mockData.ts
+mockUserData.ts
