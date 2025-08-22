@@ -5,11 +5,10 @@ export const PageLayout = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem; // gap-6
-  height: calc(100vh - 200px);
+  height: calc(100vh);
 
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: 1fr; // 상단 2/3, 하단 1/3 비율로 분할
   }
 `;
 
@@ -27,6 +26,7 @@ export const FlowPanel = styled(Panel)`
 `;
 */
 export const FlowPanel = styled(Panel)`
+  height: 540px;
   @media (min-width: 768px) {
     grid-column: span 1 / span 1;
     grid-row: 1; // 첫 번째 행에 위치
@@ -36,6 +36,7 @@ export const FlowPanel = styled(Panel)`
 export const ChatPanel = styled(Panel)`
   display: flex;
   flex-direction: column;
+  height: 540px;
 
   @media (min-width: 768px) {
     grid-column: span 2 / span 2;
@@ -139,11 +140,25 @@ export const TableRow = styled.div`
 
 export const MessageArea = styled.div`
   flex-grow: 1;
+  min-height: 0;
   padding: 1rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1rem; // space-y-4
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+  }
 `;
 
 interface MessageWrapperProps {
