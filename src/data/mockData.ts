@@ -805,6 +805,79 @@ export const evaluationRuns: EvaluationRun[] = [
       },
     ],
   },
+  {
+    date: "01-23",
+    modules: [
+      {
+        moduleName: "MyRetrievalModule",
+        queries: [
+          {
+            query: "Q1",
+            answer: "A1",
+            metrics: [
+              { name: "Metric1", score: 0.72 },
+              { name: "Metric2", score: 0.84 },
+              { name: "Metric3", score: 0.93 },
+              { name: "Metric4", score: 0.92 },
+              { name: "Metric5", score: 0.37 },
+            ],
+          },
+          {
+            query: "Q2",
+            answer: "A2",
+            metrics: [
+              { name: "Metric1", score: 0.79 },
+              { name: "Metric2", score: 0.86 },
+              { name: "Metric3", score: 0.88 },
+              { name: "Metric4", score: 0.94 },
+              { name: "Metric5", score: 0.55 },
+            ],
+          },
+        ],
+      },
+      {
+        moduleName: "MyPostRetrievalModule",
+        queries: [
+          {
+            query: "RAG란 무엇인가?",
+            answer: "A1",
+            metrics: [{ name: "Metric1", score: 0.78 }],
+          },
+          {
+            query: "On-Premise의 장점은?",
+            answer: "A2",
+            metrics: [{ name: "Metric1", score: 0.85 }],
+          },
+          {
+            query: "LLM의 한계는?",
+            answer: "A3",
+            metrics: [{ name: "Metric1", score: 0.72 }],
+          },
+        ],
+      },
+      {
+        moduleName: "MyGenerationModule",
+        queries: [
+          {
+            query: "Q1",
+            answer: "A1",
+            metrics: [
+              { name: "Metric2", score: 0.96 },
+              { name: "Metric3", score: 0.97 },
+            ],
+          },
+          {
+            query: "Q2",
+            answer: "A2",
+            metrics: [
+              { name: "Metric2", score: 0.94 },
+              { name: "Metric3", score: 0.95 },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export const existingQueries = [

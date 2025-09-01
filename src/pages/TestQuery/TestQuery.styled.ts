@@ -44,10 +44,73 @@ export const ChatPanel = styled(Panel)`
   }
 `;
 
-export const ResultPanel = styled(Panel)`
+export const MetricsPanel = styled(Panel)`
   @media (min-width: 768px) {
     grid-column: 1 / -1; // 전체 너비 사용
     grid-row: 2; // 두 번째 행에 위치
+  }
+`;
+
+export const ResultPanel = styled(Panel)`
+  @media (min-width: 768px) {
+    grid-column: 1 / -1; // 전체 너비 사용
+    grid-row: 3; // 세 번째 행에 위치
+  }
+`;
+
+export const ModuleSection = styled.div`
+  margin-bottom: 2rem;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+export const ModuleTitle = styled.h3`
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 1rem;
+`;
+
+export const MetricsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+`;
+
+export const MetricBox = styled.div`
+  position: relative;
+  padding-bottom: 1rem;
+  border-radius: 0.5rem;
+`;
+
+export const MetricTitle = styled.div`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+export const ScrollableContent = styled.div`
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
   }
 `;
 
