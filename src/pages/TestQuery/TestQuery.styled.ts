@@ -74,15 +74,30 @@ export const ModuleTitle = styled.h3`
 `;
 
 export const MetricsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
   gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #1f2937;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+  }
 `;
 
 export const MetricBox = styled.div`
   position: relative;
   padding-bottom: 1rem;
   border-radius: 0.5rem;
+  flex: 0 0 400px; // 고정 너비 200px
 `;
 
 export const MetricTitle = styled.div`
