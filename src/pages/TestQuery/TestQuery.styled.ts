@@ -22,13 +22,6 @@ export const Panel = styled.div`
   flex-direction: column;
 `;
 
-/*
-export const FlowPanel = styled(Panel)`
-  @media (min-width: 768px) {
-    grid-column: span 1 / span 1;
-  }
-`;
-*/
 export const FlowPanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 1 / 2; /* 1번째 열 차지 */
@@ -43,17 +36,17 @@ export const ChatPanel = styled(Panel)`
   }
 `;
 
-export const MetricsPanel = styled(Panel)`
-  @media (min-width: 1024px) {
-    grid-column: 1 / -1; /* 전체 열 차지 */
-    grid-row: 3 / 4;     /* 3번째 행 차지 */
-  }
-`;
-
 export const ResultPanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 1 / -1; /* 전체 열 차지 */
     grid-row: 2 / 3;     /* 2번째 행 차지 */
+  }
+`;
+
+export const MetricsPanel = styled(Panel)`
+  @media (min-width: 1024px) {
+    grid-column: 1 / -1; /* 전체 열 차지 */
+    grid-row: 3 / 4;     /* 3번째 행 차지 */
   }
 `;
 
@@ -107,7 +100,6 @@ export const Title = styled.h2`
   font-weight: 600;
   color: #ffffff;
   margin-bottom: 1rem;
-  /* 패널의 flex-direction이 column이므로, Title이 늘어나지 않도록 설정 */
   flex-shrink: 0; 
 `;
 
@@ -118,20 +110,15 @@ export const FlowList = styled.div`
   overflow-y: auto;
 `;
 
-interface FlowItemProps {
-  isActive: boolean;
-}
-
 export const FlowItem = styled.div<{ isActive: boolean; isCompleted: boolean }>`
   padding: 1rem;
-  border-radius: 0.5rem; // rounded-lg
+  border-radius: 0.5rem;
   border-width: 2px;
   transition: all 0.3s;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   
-  // 조건부 스타일링
   border-color: ${props => props.isActive ? '#22d3ee' : (props.isCompleted ? '#34d399' : '#4b5563')};
   background-color: ${props => 
     props.isActive 
@@ -179,6 +166,7 @@ export const TableRow = styled.div`
   }
 `;
 
+// --- 채팅창 높이 고정 ---
 export const MessageArea = styled.div`
   flex-grow: 1;
   min-height: 0;
@@ -186,8 +174,8 @@ export const MessageArea = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1rem; // space-y-4
-  max-height: 400px;
+  gap: 1rem;
+  max-height: 200px; /* 채팅창 최대 높이 고정 */
 `;
 
 interface MessageWrapperProps {
@@ -213,7 +201,7 @@ export const InputForm = styled.form`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-shrink: 0; /* 패널 크기가 줄어들 때 입력 폼이 찌그러지지 않도록 설정 */
+  flex-shrink: 0;
 `;
 
 export const StyledInput = styled.input`

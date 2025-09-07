@@ -1,5 +1,5 @@
 // /src/pages/TestQuery/TestQueryView.tsx
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import * as S from './TestQuery.styled';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { evaluationRuns } from '../../data/mockData';
@@ -27,6 +27,17 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   metrics,
   handleReset 
 }) => {
+
+  const messageEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]); // messages
+
   const latestData = evaluationRuns[evaluationRuns.length - 1];
   
   const moduleMetrics = latestData?.modules.map(module => {
