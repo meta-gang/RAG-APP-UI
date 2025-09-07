@@ -1,35 +1,69 @@
 // /src/pages/Dashboard/index.tsx
 
 import React, { useState, useMemo } from 'react';
-import { evaluationRuns } from '../../data/mockData';
+import { evaluationRuns } from '../../data/mockData';   // 현재 mockData 디렉토리에서 임시 데이터를 가져옴
 import { QueryEvaluation } from '../../globals/types';
 import { DashboardView } from './DashboardView';
+import { CHART_COLORS } from '@styles/color'; // [수정] 정의된 차트 색상을 import 합니다.
 
-// 상태 관리와 데이터 가공 로직만 담당한다.
 export const DashboardPage: React.FC = () => {
-    // ------------------- 상태 관리 (State) -------------------
     const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
     const [selectedModule, setSelectedModule] = useState<string>(evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName);
+    
+    // 색상을 모듈 별로 고정하는 코드 / 모듈 순서대로 리스트를 만들고, 이 순서대로 색상이 고정됨
+    const allModuleNames = useMemo(() => {
+        const names = new Set<string>();
+        evaluationRuns.forEach(run => {
+            run.modules.forEach(module => names.add(module.moduleName));
+        });
+        return Array.from(names);
+    }, []);
+    
     const [isZoomed, setIsZoomed] = useState(false);
     const [selectedBarMetric, setSelectedBarMetric] = useState<string | null>(null);
     const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
 
-    // ------------------- 데이터 가공 (Memoization) -------------------
     const selectedRun = useMemo(() => evaluationRuns.find((run) => run.date === selectedDate), [selectedDate]);
     const selectedModuleData = useMemo(() => selectedRun?.modules.find((m) => m.moduleName === selectedModule), [selectedRun, selectedModule]);
 
     const modulePerformanceData = useMemo(() => {
-        const data: { date: string; [key: string]: number | string }[] = [];
+        const data: { date: string; [key: string]: number | string | null }[] = [];
         evaluationRuns.forEach((run) => {
-        const entry: { date: string; [key: string]: number | string } = {
+        const entry: { date: string; [key: string]: number | string | null } = {
             date: run.date,
         };
+        allModuleNames.forEach((moduleName) => {
+            const module = run.modules.find((m) => m.moduleName === moduleName);
+            // 만약 어떤 모듈이 없으면 null로 초기화 -> 처음에 없다가 나중에 모듈이 추가돼도 그래프 그려지게 함
+            if (!module) {
+                entry[moduleName] = null; // 또는 null
+            } else {
+                const totalQueries = module.queries.length;
+                // 모듈은 있는데 쿼리는 없는 경우 해당 모듈의 점수 0점으로 처리
+                if (totalQueries === 0) {
+                entry[moduleName] = 0;
+                } else {
+                // 각 쿼리의 metric 별 평균 점수를 계산함 / 단순 평균은 종합 그래프로, 백분율 평균은 breakdown 그래프로
+                const avgScore =
+                    module.queries.reduce((sum, q) => {
+                    const metricCount = q.metrics.length;
+                    if (metricCount === 0) return sum;
+                    return sum + q.metrics.reduce((s, m) => s + m.score, 0) / metricCount;
+                    }, 0) / totalQueries;
+                entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
+                }
+            }
+            });
+            data.push(entry);
+        
+        /*
         run.modules.forEach((module) => {
             const totalQueries = module.queries.length;
             if (totalQueries === 0) {
             entry[module.moduleName] = 0;
             return;
             }
+            // 각 쿼리의 metric 별 평균 점수를 계산함 / 단순 평균은 종합 그래프로, 백분율 평균은 breakdown 그래프로
             const avgScore =
             module.queries.reduce((sum, q) => {
                 const metricCount = q.metrics.length;
@@ -41,6 +75,7 @@ export const DashboardPage: React.FC = () => {
             entry[module.moduleName] = parseFloat((avgScore * 100).toFixed(2));
         });
         data.push(entry);
+        */
         });
         return data;
     }, []);
@@ -143,7 +178,6 @@ export const DashboardPage: React.FC = () => {
         .sort((a, b) => b.score - a.score);
     }, [selectedModuleData, selectedBarMetric, selectedScoreRange]);
 
-    // ------------------- 이벤트 핸들러 (Event Handlers) -------------------
     const handleDotClick = (payload: any) => {
         if (payload && payload.dataKey && payload.payload?.date) {
             const clickedDate = payload.payload.date;
@@ -176,10 +210,6 @@ export const DashboardPage: React.FC = () => {
         }
     };
 
-    // ------------------- 렌더링 (Rendering) -------------------
-    const moduleColors = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#a4de6c", "#d0ed57"];
-    
-    // View 컴포넌트에 모든 상태와 핸들러를 props로 전달한다.
     return (
         <DashboardView
             isZoomed={isZoomed}
@@ -190,13 +220,14 @@ export const DashboardPage: React.FC = () => {
             modulePerformanceData={modulePerformanceData}
             handleDotClick={handleDotClick}
             handleFrequencyBarClick={handleFrequencyBarClick}
-            moduleColors={moduleColors}
+            moduleColors={CHART_COLORS}
             detailedQueryData={detailedQueryData}
             selectedScoreRange={selectedScoreRange}
             metricDistributionData={metricDistributionData}
             metricPerformanceBreakdownData={metricPerformanceBreakdownData}
             handleZoomClick={handleZoomClick}
             handleZoomOut={handleZoomOut}
+            allModuleNames={allModuleNames}
         />
     );
 };

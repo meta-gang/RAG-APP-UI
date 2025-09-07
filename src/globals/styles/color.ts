@@ -1,3 +1,5 @@
+// src/globals/styles/color.ts
+
 export enum EColor {
   COLOR_PRIMARY = "#1b4378",
   COLOR_SECONDARY = "#3c4253",
@@ -18,3 +20,14 @@ export enum EColor {
   GRAY = "#A5A5A5",
   RED = "#fa4a4a"
 }
+
+export const CHART_COLORS = [
+  "#8884d8",
+  "#82ca9d",
+  "#ffc658",
+  "#ff8042",
+  "#a4de6c",
+  "#d0ed57",
+  "#ff7300",
+  "#00e5ff",
+];

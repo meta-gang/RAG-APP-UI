@@ -22,6 +22,7 @@ interface DashboardViewProps {
   metricPerformanceBreakdownData: Record<string, any[]>;
   handleZoomClick: (metricName: string) => void;
   handleZoomOut: () => void;
+  allModuleNames: string[];
 }
 
 // props를 받아 화면을 그리는 역할을 하는 컴포넌트
@@ -41,6 +42,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     metricPerformanceBreakdownData,
     handleZoomClick,
     handleZoomOut,
+    allModuleNames,
 }) => {
   return (
     <S.DashboardContainer>
@@ -52,9 +54,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ? `[Zoomed] ${selectedBarMetric} Score Distribution on ${selectedDate}`
                 : "RAG Performance Change"}
             </S.BoxTitle>
-            <ResponsiveContainer width="100%" height={400}>
-              {isZoomed ? (
-                <BarChart data={zoomedFrequencyData}>
+            {isZoomed ? (
+              // 확대 상태
+              <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={zoomedFrequencyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="range" stroke="#9CA3AF" />
                   <YAxis stroke="#9CA3AF" allowDecimals={false} />
@@ -75,38 +78,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     ))}
                   </Bar>
                 </BarChart>
-              ) : (
-                <LineChart data={modulePerformanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="date" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" domain={[60, 100]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1F2937",
-                      borderColor: "#4B5563",
-                    }}
-                  />
-                  <Legend />
-                  {Object.keys(modulePerformanceData[0] || {})
-                    .filter((k) => k !== "date")
-                    .map((moduleName, index) => (
-                      <Line
-                        key={moduleName}
-                        type="monotone"
-                        dataKey={moduleName}
-                        stroke={moduleColors[index % moduleColors.length]}
-                        strokeWidth={2}
-                        activeDot={{ 
-                            onClick: (e, payload) => handleDotClick(payload), 
-                            r: 8, 
-                            style: { cursor: 'pointer' } 
-                        }}
-                        connectNulls
-                      />
-                    ))}
-                </LineChart>
-              )}
-            </ResponsiveContainer>
+              </ResponsiveContainer>
+            ) : (
+              <div style ={{ width: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+                <ResponsiveContainer width={Math.max(modulePerformanceData.length *80, 400)} height={400}>
+                  <LineChart data={modulePerformanceData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="date" stroke="#9CA3AF" />
+                    <YAxis stroke="#9CA3AF" domain={[60, 100]} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#1F2937",
+                        borderColor: "#4B5563",
+                      }}
+                    />
+                    <Legend />
+                    {Object.keys(modulePerformanceData[0] || {})
+                      .filter((k) => k !== "date")
+                        .map((moduleName) => {
+                          const colorIdx = allModuleNames.indexOf(moduleName);
+                          return (
+                            <Line
+                              key={moduleName}
+                              type="monotone"
+                              dataKey={moduleName}
+                              stroke={moduleColors[colorIdx % moduleColors.length]}
+                              strokeWidth={2}
+                              activeDot={{ 
+                                  onClick: (e, payload) => handleDotClick(payload), 
+                                  r: 8, 
+                                  style: { cursor: 'pointer' } 
+                              }}
+                              // 현재 시점에 없는 모듈의 그래프 단절
+                              connectNulls = {false}
+                            />
+                          );
+                        })}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )
+
+            }
+            
           </S.ChartBox>
         </S.MainChartWrapper>
         <S.SidePanelWrapper>
@@ -220,16 +234,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     }}
                   />
                   <Legend />
-                  {Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {})).filter(key => key !== 'date').map((moduleName, i) => (
-                      <Line
-                        key={moduleName}
-                        type="monotone"
-                        dataKey={moduleName}
-                        stroke={moduleColors[i % moduleColors.length]}
-                        strokeWidth={2}
-                        connectNulls
-                      />
-                    ))}
+                  {Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {}))
+                    .filter(key => key !== 'date')
+                    .map((moduleName) => {
+                      const colorIdx = allModuleNames.indexOf(moduleName);
+                      return (
+                        <Line
+                          key={moduleName}
+                          type="monotone"
+                          dataKey={moduleName}
+                          stroke={moduleColors[colorIdx % moduleColors.length]}
+                          strokeWidth={2}
+                          connectNulls = {false}
+                        />
+                      );
+                    })}
                 </LineChart>
               </ResponsiveContainer>
             </S.ChartBox>
