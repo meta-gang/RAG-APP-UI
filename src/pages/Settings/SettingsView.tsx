@@ -1,9 +1,10 @@
 // /src/pages/Settings/SettingsView.tsx
 import React from 'react';
-import { Upload, PlayCircle } from 'lucide-react';
+import { Upload, PlayCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import * as S from './Settings.styled';
 
 interface SettingsViewProps {
+  step: number;
   files: File[];
   querySource: 'manual' | 'llm';
   llmOption: 'new' | 'existing';
@@ -11,6 +12,8 @@ interface SettingsViewProps {
   existingQueries: string[];
   
   // Event Handlers
+  handleNextStep: () => void;
+  handlePrevStep: () => void;
   handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleFileDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   setQuerySource: (source: 'manual' | 'llm') => void;
@@ -20,6 +23,9 @@ interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
+  step,
+  handleNextStep,
+  handlePrevStep,
   files,
   querySource,
   llmOption,
@@ -32,102 +38,149 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   handleRun,
   handleDropzoneClick,
 }) => {
+  const renderStepContent = () => {
+    switch (step) {
+      case 1: // 1단계: Query Source 선택
+        return (
+          <div>
+            <S.Label>Step 1: Query Source</S.Label>
+            <S.Grid>
+              <S.OptionBox isSelected={querySource === 'manual'}>
+                <S.RadioWrapper>
+                  <input
+                    type="radio"
+                    name="query-source"
+                    value="manual"
+                    checked={querySource === 'manual'}
+                    onChange={() => setQuerySource('manual')}
+                  />
+                  <span>Manual Query Input</span>
+                </S.RadioWrapper>
+              </S.OptionBox>
+              <S.OptionBox isSelected={querySource === 'llm'}>
+                <S.RadioWrapper>
+                  <input
+                    type="radio"
+                    name="query-source"
+                    value="llm"
+                    checked={querySource === 'llm'}
+                    onChange={() => setQuerySource('llm')}
+                  />
+                  <span>Generate with LLM</span>
+                </S.RadioWrapper>
+              </S.OptionBox>
+            </S.Grid>
+          </div>
+        );
+      case 2: // 2단계: 소스에 따른 상세 설정
+        return (
+          <>
+            {querySource === 'manual' && (
+              <div>
+                <S.Label>Step 2: Upload Manual Queries</S.Label>
+                <S.Dropzone
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleFileDrop}
+                  onClick={handleDropzoneClick}
+                >
+                  <Upload size={24} />
+                  <p>Drag & drop files or click to browse</p>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    multiple
+                    style={{ display: 'none' }}
+                  />
+                </S.Dropzone>
+                {files.length > 0 && (
+                  <S.FileList>
+                    {files.map((f) => f.name).join(', ')}
+                  </S.FileList>
+                )}
+              </div>
+            )}
+            {querySource === 'llm' && (
+              <div>
+                <S.Label>Step 2: LLM Generation Options</S.Label>
+                  <S.SubOptionsContainer>
+                    <S.RadioWrapper as="label">
+                      <input
+                        type="radio"
+                        name="llm-query-option"
+                        value="existing"
+                        checked={llmOption === 'existing'}
+                        onChange={() => setLlmOption('existing')}
+                        disabled={querySource !== 'llm'}
+                      />
+                      <span>Use existing queries</span>
+                    </S.RadioWrapper>
+                    {llmOption === 'existing' && (
+                      <S.Select id="existing-query-select" disabled={querySource !== 'llm'}>
+                        {existingQueries.map((q) => (
+                          <option key={q}>{q}</option>
+                        ))}
+                      </S.Select>
+                    )}
+                    <S.RadioWrapper as="label">
+                      <input
+                        type="radio"
+                        name="llm-query-option"
+                        value="new"
+                        checked={llmOption === 'new'}
+                        onChange={() => setLlmOption('new')}
+                        disabled={querySource !== 'llm'}
+                      />
+                      <span>Generate new queries</span>
+                    </S.RadioWrapper>
+                    {llmOption === 'new' && (
+                      <S.Select id="llm-select" disabled={querySource !== 'llm'}>
+                        <option>LLaMON (meta-gang)</option>
+                        <option>GPT-4 (OpenAI)</option>
+                        <option>Gemini-Pro (Google)</option>
+                      </S.Select>
+                    )}
+                  </S.SubOptionsContainer>
+              </div>
+            )}
+          </>
+        );
+      case 3: // 3단계: 최종 확인
+        return (
+          <div>
+            <S.Label>Step 3: Confirm & Run</S.Label>
+            <S.OptionBox isSelected={true} style={{ cursor: 'default' }}>
+              <p><strong>Query Source:</strong> {querySource}</p>
+              {querySource === 'manual' && files.length > 0 && (
+                <p><strong>Files:</strong> {files.map(f => f.name).join(', ')}</p>
+              )}
+              {querySource === 'llm' && (
+                <p><strong>LLM Option:</strong> {llmOption}</p>
+              )}
+            </S.OptionBox>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <S.SettingsContainer>
       <S.Title>Evaluation Settings</S.Title>
       <S.FormContainer>
-        <div>
-          <S.Label>Query Source</S.Label>
-          <S.Grid>
-            <S.OptionBox isSelected={querySource === 'manual'}>
-              <S.RadioWrapper>
-                <input
-                  type="radio"
-                  name="query-source"
-                  value="manual"
-                  checked={querySource === 'manual'}
-                  onChange={() => setQuerySource('manual')}
-                />
-                <span>Manual Query Input</span>
-              </S.RadioWrapper>
-              <S.Dropzone
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleFileDrop}
-                onClick={handleDropzoneClick}
-              >
-                <Upload size={24} />
-                <p>Drag & drop files or click to browse</p>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  multiple
-                  className="hidden"
-                  disabled={querySource !== 'manual'}
-                />
-              </S.Dropzone>
-              {files.length > 0 && querySource === 'manual' && (
-                <S.FileList>
-                  {files.map((f) => f.name).join(', ')}
-                </S.FileList>
-              )}
-            </S.OptionBox>
-
-            <S.OptionBox isSelected={querySource === 'llm'}>
-              <S.RadioWrapper>
-                <input
-                  type="radio"
-                  name="query-source"
-                  value="llm"
-                  checked={querySource === 'llm'}
-                  onChange={() => setQuerySource('llm')}
-                />
-                <span>Generate with LLM</span>
-              </S.RadioWrapper>
-              <S.SubOptionsContainer>
-                <S.RadioWrapper as="label">
-                  <input
-                    type="radio"
-                    name="llm-query-option"
-                    value="existing"
-                    checked={llmOption === 'existing'}
-                    onChange={() => setLlmOption('existing')}
-                    disabled={querySource !== 'llm'}
-                  />
-                  <span>Use existing queries</span>
-                </S.RadioWrapper>
-                {llmOption === 'existing' && (
-                  <S.Select id="existing-query-select">
-                    {existingQueries.map((q) => (
-                      <option key={q}>{q}</option>
-                    ))}
-                  </S.Select>
-                )}
-                <S.RadioWrapper as="label">
-                  <input
-                    type="radio"
-                    name="llm-query-option"
-                    value="new"
-                    checked={llmOption === 'new'}
-                    onChange={() => setLlmOption('new')}
-                    disabled={querySource !== 'llm'}
-                  />
-                  <span>Generate new queries</span>
-                </S.RadioWrapper>
-                {llmOption === 'new' && (
-                  <S.Select id="llm-select">
-                    <option>LLaMON (meta-gang)</option>
-                    <option>GPT-4 (OpenAI)</option>
-                    <option>Gemini-Pro (Google)</option>
-                  </S.Select>
-                )}
-              </S.SubOptionsContainer>
-            </S.OptionBox>
-          </S.Grid>
-        </div>
+        {renderStepContent()}
         <S.ButtonWrapper>
-          <S.SubmitButton onClick={handleRun}>
-            <PlayCircle size={16} /> Run RAG & View Dashboard
+          {step > 1 ? (
+            <S.BackButton onClick={handlePrevStep}>
+              <ArrowLeft size={16} /> Back
+            </S.BackButton>
+          ) : (
+            <div />
+          )}
+          <S.SubmitButton onClick={handleNextStep}>
+            {step === 3 ? <PlayCircle size={16} /> : <ArrowRight size={16} />}
+            {step === 3 ? 'Run RAG Test' : 'Next'}
           </S.SubmitButton>
         </S.ButtonWrapper>
       </S.FormContainer>

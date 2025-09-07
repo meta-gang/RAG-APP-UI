@@ -1,20 +1,29 @@
 // /src/pages/TestQuery/index.tsx
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useRecoilState } from 'recoil';
+import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { chatEvaluationRun } from '../../data/mockUserData'; 
 
-export const TestQueryPage: React.FC = () => {
-    const [activeModule, setActiveModule] = useState<string | null>(null);
-    const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([]);
-    const [metrics, setMetrics] = useState<{ moduleName: string; metrics: {name: string, score: number}[] }[]>([]);
+type ModuleStatus = 'pending' | 'loading' | 'completed';
 
-    /*
-    현재는 pipeline = [모듈1, 모듈2 ...] 이렇게 지정해줬지만
-    프레임워크와 연결 시 RAGContainer에 있는 모듈 이름을 자동으로 가져와서 리스트에 저장해야 함
-    + 현재 리스트 형식은 Linear 구조에 대해서만 반짝이로 보여줄 수 있는데, 사이클이나 if문 등 Non linear 구조에서는 위반짝 아래반짝 다시 위반짝 이런 식으로 가야 될 듯
-    프레임워크로부터 linker 받아와서 의존 구조에 맞춰서 반짝이게..?
-    */
+export const TestQueryPage: React.FC = () => {
     const pipeline = ["MyRetrievalModule", "MyPostRetrievalModule", "MyGenerationModule"];
+    
+    // useState를 useRecoilState로 변경하여 전역 상태 사용
+    const [tqState, setTqState] = useRecoilState(testQueryState);
+
+    const initialStatuses = pipeline.reduce((acc, moduleName) => {
+        acc[moduleName] = 'pending';
+        return acc;
+    }, {} as Record<string, ModuleStatus>);
+
+    // 컴포넌트 마운트 시 moduleStatuses 초기화
+    useEffect(() => {
+        if (Object.keys(tqState.moduleStatuses).length === 0) {
+            setTqState(prev => ({...prev, moduleStatuses: initialStatuses}));
+        }
+    }, []);
 
     const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -22,10 +31,15 @@ export const TestQueryPage: React.FC = () => {
         const query = input.value;
         if (!query) return;
 
-        setMessages((prev) => [...prev, { sender: "user", text: query }]);
+        // 상태 업데이트 시 setTqState 사용
+        setTqState(prev => ({
+            ...prev,
+            messages: [...prev.messages, { sender: "user", text: query }],
+            metrics: [],
+            moduleStatuses: initialStatuses
+        }));
         input.value = "";
 
-        // chatEvaluationRun에서 query에 맞는 answer 찾기
         let answer = "";
         let foundAnswer = false;
         const metricsData: { moduleName: string; metrics: {name: string, score: number}[] }[] = [];
@@ -36,8 +50,6 @@ export const TestQueryPage: React.FC = () => {
                 if (found) {
                     answer = found.answer;
                     foundAnswer = true;
-                    // 모든 모듈의 metrics를 하나의 배열로 합침
-                    // 각 모듈의 metrics를 저장
                     metricsData.push({
                         moduleName: module.moduleName,
                         metrics: found.metrics
@@ -48,34 +60,47 @@ export const TestQueryPage: React.FC = () => {
         }
 
         if (!answer) {
-        answer = `There is no answer for "${query}".`;
+            answer = `There is no answer for "${query}".`;
         }
 
         let i = 0;
-        // 현재는 setInterval로 0.7초마다 activeModule을 순서대로 변경하고 있음
         const interval = setInterval(() => {
+            if (i > 0) {
+                setTqState(prev => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i - 1]]: 'completed' }}));
+            }
+            
             if (i < pipeline.length) {
-                setActiveModule(pipeline[i]);
+                setTqState(prev => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i]]: 'loading' }}));
                 i++;
             } else {
                 clearInterval(interval);
-                setActiveModule(null);
-                setMessages((prev) => [
+                setTqState(prev => ({
                     ...prev,
-                    { sender: "bot", text: answer },
-                ]);
-                setMetrics(metricsData);
+                    moduleStatuses: { ...prev.moduleStatuses, [pipeline[pipeline.length - 1]]: 'completed' },
+                    messages: [...prev.messages, { sender: "bot", text: answer }],
+                    metrics: metricsData,
+                }));
             }
         }, 700);
+    };
+    
+    // 테스트 초기화 핸들러
+    const handleReset = () => {
+        setTqState({
+            messages: [],
+            metrics: [],
+            moduleStatuses: initialStatuses,
+        });
     };
 
     return (
         <TestQueryView
             pipeline={pipeline}
-            activeModule={activeModule}
-            messages={messages}
+            moduleStatuses={tqState.moduleStatuses}
+            messages={tqState.messages}
             handleSendMessage={handleSendMessage}
-            metrics={metrics}
+            metrics={tqState.metrics}
+            handleReset={handleReset}
         />
     );
 };

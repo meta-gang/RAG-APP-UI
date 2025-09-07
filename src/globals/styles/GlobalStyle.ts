@@ -30,6 +30,27 @@ export const GlobalStyle = createGlobalStyle`
     }
   }
 
+  /* 스크롤바 디자인 개선 코드 추가 */
+  /* Chrome, Safari, Edge 등 Webkit 기반 브라우저 타겟 */
+  ::-webkit-scrollbar {
+    width: 8px; /* 스크롤바의 너비 */
+    height: 8px; /* 횡 스크롤바의 높이 */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1f2937; /* 스크롤바 트랙 색상 */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #4b5563; /* 스크롤바 핸들 색상 */
+    border-radius: 4px; /* 스크롤바 핸들 모서리 둥글게 */
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280; /* 마우스 호버 시 핸들 색상 */
+  }
+
+
   @font-face {
     font-family: 'NotoSansBlack';
     src: local('NotoSansBlack'), local('NotoSansBlack');
