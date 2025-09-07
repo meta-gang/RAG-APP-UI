@@ -1,5 +1,7 @@
 // /src/pages/TestQuery/index.tsx
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
+import { useRecoilState } from 'recoil';
+import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { chatEvaluationRun } from '../../data/mockUserData'; 
 
@@ -8,14 +10,20 @@ type ModuleStatus = 'pending' | 'loading' | 'completed';
 export const TestQueryPage: React.FC = () => {
     const pipeline = ["MyRetrievalModule", "MyPostRetrievalModule", "MyGenerationModule"];
     
+    // useState를 useRecoilState로 변경하여 전역 상태 사용
+    const [tqState, setTqState] = useRecoilState(testQueryState);
+
     const initialStatuses = pipeline.reduce((acc, moduleName) => {
         acc[moduleName] = 'pending';
         return acc;
     }, {} as Record<string, ModuleStatus>);
 
-    const [moduleStatuses, setModuleStatuses] = useState(initialStatuses);
-    const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([]);
-    const [metrics, setMetrics] = useState<{ moduleName: string; metrics: {name: string, score: number}[] }[]>([]);
+    // 컴포넌트 마운트 시 moduleStatuses 초기화
+    useEffect(() => {
+        if (Object.keys(tqState.moduleStatuses).length === 0) {
+            setTqState(prev => ({...prev, moduleStatuses: initialStatuses}));
+        }
+    }, []);
 
     const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -23,9 +31,13 @@ export const TestQueryPage: React.FC = () => {
         const query = input.value;
         if (!query) return;
 
-        setMessages((prev) => [...prev, { sender: "user", text: query }]);
-        setMetrics([]);
-        setModuleStatuses(initialStatuses);
+        // 상태 업데이트 시 setTqState 사용
+        setTqState(prev => ({
+            ...prev,
+            messages: [...prev.messages, { sender: "user", text: query }],
+            metrics: [],
+            moduleStatuses: initialStatuses
+        }));
         input.value = "";
 
         let answer = "";
@@ -54,32 +66,41 @@ export const TestQueryPage: React.FC = () => {
         let i = 0;
         const interval = setInterval(() => {
             if (i > 0) {
-                setModuleStatuses(prev => ({ ...prev, [pipeline[i - 1]]: 'completed' }));
+                setTqState(prev => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i - 1]]: 'completed' }}));
             }
             
             if (i < pipeline.length) {
-                setModuleStatuses(prev => ({ ...prev, [pipeline[i]]: 'loading' }));
+                setTqState(prev => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i]]: 'loading' }}));
                 i++;
             } else {
                 clearInterval(interval);
-                setModuleStatuses(prev => ({ ...prev, [pipeline[pipeline.length - 1]]: 'completed' }));
-                
-                setMessages((prev) => [
+                setTqState(prev => ({
                     ...prev,
-                    { sender: "bot", text: answer },
-                ]);
-                setMetrics(metricsData);
+                    moduleStatuses: { ...prev.moduleStatuses, [pipeline[pipeline.length - 1]]: 'completed' },
+                    messages: [...prev.messages, { sender: "bot", text: answer }],
+                    metrics: metricsData,
+                }));
             }
         }, 700);
+    };
+    
+    // 테스트 초기화 핸들러
+    const handleReset = () => {
+        setTqState({
+            messages: [],
+            metrics: [],
+            moduleStatuses: initialStatuses,
+        });
     };
 
     return (
         <TestQueryView
             pipeline={pipeline}
-            moduleStatuses={moduleStatuses}
-            messages={messages}
+            moduleStatuses={tqState.moduleStatuses}
+            messages={tqState.messages}
             handleSendMessage={handleSendMessage}
-            metrics={metrics}
+            metrics={tqState.metrics}
+            handleReset={handleReset}
         />
     );
 };
