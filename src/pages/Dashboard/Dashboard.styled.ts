@@ -60,9 +60,20 @@ export const BoxTitleH3 = styled.h3`
 `;
 
 export const IconButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
   color: #9ca3af; // text-gray-400
+
   &:hover {
     color: #ffffff;
+    background-color: #374151; // hover:bg-gray-700
   }
 `;
 

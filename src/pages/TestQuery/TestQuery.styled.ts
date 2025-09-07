@@ -9,7 +9,7 @@ export const PageLayout = styled.div`
   @media (min-width: 1024px) {
     /* 데스크탑 화면에서 그리드 레이아웃 정의 */
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: auto auto auto; /* 행 높이를 콘텐츠에 맞게 자동 조절 */
+    grid-template-rows: auto auto auto auto; /* 행 높이를 콘텐츠에 맞게 자동 조절 */
   }
 `;
 
@@ -43,10 +43,17 @@ export const ResultPanel = styled(Panel)`
   }
 `;
 
-export const MetricsPanel = styled(Panel)`
+export const LiveScorePanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 1 / -1; /* 전체 열 차지 */
     grid-row: 3 / 4;     /* 3번째 행 차지 */
+  }
+`;
+
+export const MetricsPanel = styled(Panel)`
+  @media (min-width: 1024px) {
+    grid-column: 1 / -1; /* 전체 열 차지 */
+    grid-row: 4 / 5;     /* 3번째 행 차지 */
   }
 `;
 

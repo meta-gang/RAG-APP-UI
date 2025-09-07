@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { Maximize2, ArrowLeft } from 'lucide-react';
+import { Expand, ArrowLeft } from 'lucide-react';
 import * as S from './Dashboard.styled';
 import { KPICard } from '../../components/KPICard';
 
@@ -178,7 +178,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <S.IconButton
                           onClick={() => handleZoomClick(metric.metricName)}
                         >
-                          <Maximize2 size={16} />
+                          <Expand size={16} />
                         </S.IconButton>
                       </S.BoxHeader>
                       <ResponsiveContainer width="100%" height={100}>

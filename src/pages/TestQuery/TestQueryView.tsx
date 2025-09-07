@@ -1,11 +1,29 @@
 // /src/pages/TestQuery/TestQueryView.tsx
 import React, { useRef, useEffect } from 'react';
 import * as S from './TestQuery.styled';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { evaluationRuns } from '../../data/mockData';
 import { CHART_COLORS } from '../../globals/styles/color';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Accordion } from '../../components/Accordion';
+import { LiveMetric } from '../../globals/recoil/atoms';
+
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+        const queryData = payload[0].payload;
+        return (
+            <div style={{ backgroundColor: '#1f2937', border: '1px solid #374151', padding: '10px', borderRadius: '5px' }}>
+                <p style={{ color: '#9ca3af' }}>{`Query ${label}: "${queryData.query}"`}</p>
+                {payload.map((pld: any) => (
+                    <p key={pld.dataKey} style={{ color: pld.color }}>
+                        {`${pld.dataKey}: ${pld.value.toFixed(1)}`}
+                    </p>
+                ))}
+            </div>
+        );
+    }
+    return null;
+};
 
 interface TestQueryViewProps {
   pipeline: string[];
@@ -15,6 +33,7 @@ interface TestQueryViewProps {
     moduleName: string;
     metrics: {name: string, score: number}[];
   }[];
+  liveMetricsHistory: LiveMetric[];
   handleSendMessage: (e: React.FormEvent<HTMLFormElement>) => void;
   handleReset: () => void; 
 }
@@ -25,18 +44,23 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   messages,
   handleSendMessage,
   metrics,
+  liveMetricsHistory,
   handleReset 
 }) => {
-
   const messageEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const messageAreaRef = useRef<HTMLDivElement>(null); // 채팅창 자체에 대한 ref
+
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]); // messages
+    // 채팅창의 스크롤 높이를 맨 아래로 설정하여 내부 스크롤만 발생시킴
+    if (messageAreaRef.current) {
+      messageAreaRef.current.scrollTop = messageAreaRef.current.scrollHeight;
+    }
+  }, [messages]); // messages 배열이 변경될 때마다 실행
 
   const latestData = evaluationRuns[evaluationRuns.length - 1];
   
@@ -64,18 +88,26 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
     return { moduleName: module.moduleName, metrics: metricData };
   }) || [];
 
+  const availableMetrics = (liveMetricsHistory || []).reduce((acc, curr) => {
+      Object.keys(curr).forEach(key => {
+          if (key !== 'query' && key !== 'queryNumber' && !acc.includes(key)) {
+              acc.push(key);
+          }
+      });
+      return acc;
+  }, [] as string[]);
+
   return (
     <S.PageLayout>
       <S.FlowPanel>
         <S.TestQueryHeader>
           <S.Title>Processing Flow</S.Title>
-          {/* 리셋 버튼 추가 */}
           <S.ResetButton onClick={handleReset} title="Reset Test">
             <RefreshCw size={14} />
           </S.ResetButton>
         </S.TestQueryHeader>
         <S.FlowList>
-          {pipeline.map((module, index) => {
+          {(pipeline || []).map((module, index) => { // 방어 코드 추가
             const status = moduleStatuses[module] || 'pending';
             return (
               <S.FlowItem 
@@ -95,15 +127,16 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
 
       <S.ChatPanel>
         <S.Title>Live Test</S.Title>
-        <S.MessageArea>
-          {messages.length === 0 && <div style={{textAlign: 'center', color: '#9ca3af', marginTop: 'auto', marginBottom: 'auto'}}>Send a query to start the test.</div>}
-          {messages.map((msg, i) => (
+        <S.MessageArea ref={messageAreaRef}>
+          {(messages || []).length === 0 && <div style={{textAlign: 'center', color: '#9ca3af', marginTop: 'auto', marginBottom: 'auto'}}>Send a query to start the test.</div>}
+          {(messages || []).map((msg, i) => (
             <S.MessageWrapper key={i} sender={msg.sender}>
               <S.MessageBubble sender={msg.sender}>
                 {msg.text}
               </S.MessageBubble>
             </S.MessageWrapper>
           ))}
+          {/* scrollIntoView를 위한 ref는 제거 */}
         </S.MessageArea>
         <S.InputForm onSubmit={handleSendMessage}>
           <S.StyledInput
@@ -120,10 +153,11 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       <S.ResultPanel>
         <S.Title>Evaluation Result</S.Title>
         <div>
-          {metrics.length === 0 && <div style={{color: '#9ca3af'}}>Results will appear here after the test is complete.</div>}
-          {metrics.map((moduleData) => {
-            const avgScore = moduleData.metrics.length > 0
-              ? (moduleData.metrics.reduce((sum, m) => sum + m.score, 0) / moduleData.metrics.length * 100).toFixed(1)
+          {/* --- 오류 수정: metrics가 undefined일 경우를 대비한 방어 코드 추가 --- */}
+          {(metrics || []).length === 0 && <div style={{color: '#9ca3af'}}>Results will appear here after the test is complete.</div>}
+          {(metrics || []).map((moduleData) => {
+            const avgScore = (moduleData.metrics || []).length > 0
+              ? ((moduleData.metrics || []).reduce((sum, m) => sum + m.score, 0) / (moduleData.metrics || []).length * 100).toFixed(1)
               : 'N/A';
             const accordionTitle = (
               <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
@@ -133,7 +167,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             );
             return (
               <Accordion key={moduleData.moduleName} title={accordionTitle}>
-                {moduleData.metrics.map((metric, metricIndex) => (
+                {(moduleData.metrics || []).map((metric, metricIndex) => (
                   <S.TableRow key={metricIndex}>
                     <span>- {metric.name}</span>
                     <span>{(metric.score * 100).toFixed(1)}%</span>
@@ -142,8 +176,43 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
               </Accordion>
             );
           })}
+          {/* --- 수정 완료 --- */}
         </div>
       </S.ResultPanel>
+      
+      <S.LiveScorePanel>
+        <S.Title>Live Test Score Trend</S.Title>
+        {/* --- 오류 수정: liveMetricsHistory가 undefined일 경우를 대비한 방어 코드 추가 --- */}
+        {(liveMetricsHistory || []).length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart
+              data={liveMetricsHistory}
+              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="queryNumber" stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3AF" domain={[0, 100]} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              {availableMetrics.map((metricName, index) => (
+                  <Line 
+                    key={metricName}
+                    type="monotone" 
+                    dataKey={metricName} 
+                    stroke={CHART_COLORS[index % CHART_COLORS.length]} 
+                    strokeWidth={2}
+                    activeDot={{ r: 8 }}
+                  />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <div style={{color: '#9ca3af', textAlign: 'center', margin: 'auto'}}>
+            Live test results will be charted here.
+          </div>
+        )}
+        {/* --- 수정 완료 --- */}
+      </S.LiveScorePanel>
 
       <S.MetricsPanel>
         <S.Title>Latest Metrics Overview</S.Title>
