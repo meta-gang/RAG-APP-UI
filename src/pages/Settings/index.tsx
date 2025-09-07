@@ -16,6 +16,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
     const [querySource, setQuerySource] = useState<'manual' | 'llm'>("manual");
     const [llmOption, setLlmOption] = useState<'new' | 'existing'>("new");
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [isRunning, setIsRunning] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [progressMessage, setProgressMessage] = useState('');
     
     // Step 2: 다음 단계로 넘어가는 핸들러 함수
     const handleNextStep = () => {
@@ -55,19 +59,44 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
     };
     
     const handleRun = () => {
+        setIsRunning(true);
+        setProgress(0);
+        setProgressMessage('Initializing...');
+
         console.log("Running RAG evaluation with settings:", {
             querySource,
             llmOption,
             files
         });
-        // 실행 후 대시보드로 이동
-        setCurrentPage("dashboard");
+
+        // 진행률 시뮬레이션
+        const interval = setInterval(() => {
+            setProgress(prev => {
+                const nextProgress = prev + 10;
+                if (nextProgress >= 100) {
+                    clearInterval(interval);
+                    setProgressMessage('Evaluation complete! Redirecting...');
+                    setTimeout(() => {
+                        setCurrentPage("dashboard");
+                        setIsRunning(false); // 페이지 이동 후 상태 초기화
+                    }, 1000);
+                    return 100;
+                }
+                
+                if (nextProgress > 70) setProgressMessage('Finalizing results...');
+                else if (nextProgress > 30) setProgressMessage('Generating answers...');
+
+                return nextProgress;
+            });
+        }, 300); // 0.3초마다 진행률 업데이트
     };
 
     return (
         <SettingsView
-            // Step 4: step과 핸들러 함수를 props로 전달
             step={step}
+            isRunning={isRunning}
+            progress={progress}
+            progressMessage={progressMessage}
             handleNextStep={handleNextStep}
             handlePrevStep={handlePrevStep}
             files={files}

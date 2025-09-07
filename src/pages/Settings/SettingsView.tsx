@@ -2,9 +2,13 @@
 import React from 'react';
 import { Upload, PlayCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import * as S from './Settings.styled';
+import { ProgressBar } from '../../components/ProgressBar';
 
 interface SettingsViewProps {
   step: number;
+  isRunning: boolean;
+  progress: number;
+  progressMessage: string;
   files: File[];
   querySource: 'manual' | 'llm';
   llmOption: 'new' | 'existing';
@@ -24,6 +28,9 @@ interface SettingsViewProps {
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   step,
+  isRunning,
+  progress,
+  progressMessage,
   handleNextStep,
   handlePrevStep,
   files,
@@ -40,7 +47,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const renderStepContent = () => {
     switch (step) {
-      case 1: // 1단계: Query Source 선택
+      case 1:
         return (
           <div>
             <S.Label>Step 1: Query Source</S.Label>
@@ -72,7 +79,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </S.Grid>
           </div>
         );
-      case 2: // 2단계: 소스에 따른 상세 설정
+      case 2:
         return (
           <>
             {querySource === 'manual' && (
@@ -145,7 +152,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
           </>
         );
-      case 3: // 3단계: 최종 확인
+      case 3:
         return (
           <div>
             <S.Label>Step 3: Confirm & Run</S.Label>
@@ -167,23 +174,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <S.SettingsContainer>
-      <S.Title>Evaluation Settings</S.Title>
-      <S.FormContainer>
-        {renderStepContent()}
-        <S.ButtonWrapper>
-          {step > 1 ? (
-            <S.BackButton onClick={handlePrevStep}>
-              <ArrowLeft size={16} /> Back
-            </S.BackButton>
-          ) : (
-            <div />
-          )}
-          <S.SubmitButton onClick={handleNextStep}>
-            {step === 3 ? <PlayCircle size={16} /> : <ArrowRight size={16} />}
-            {step === 3 ? 'Run RAG Test' : 'Next'}
-          </S.SubmitButton>
-        </S.ButtonWrapper>
-      </S.FormContainer>
+      {isRunning ? (
+        <ProgressBar progress={progress} message={progressMessage} />
+      ) : (
+        <>
+          <S.Title>Evaluation Settings</S.Title>
+          <S.FormContainer>
+            {renderStepContent()}
+            <S.ButtonWrapper>
+              {step > 1 ? (
+                <S.BackButton onClick={handlePrevStep}>
+                  <ArrowLeft size={16} /> Back
+                </S.BackButton>
+              ) : (
+                <div />
+              )}
+              <S.SubmitButton onClick={handleNextStep}>
+                {step === 3 ? <PlayCircle size={16} /> : <ArrowRight size={16} />}
+                {step === 3 ? 'Run RAG Test' : 'Next'}
+              </S.SubmitButton>
+            </S.ButtonWrapper>
+          </S.FormContainer>
+        </>
+      )}
     </S.SettingsContainer>
   );
 };
