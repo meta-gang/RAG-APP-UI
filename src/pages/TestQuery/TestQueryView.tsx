@@ -4,10 +4,12 @@ import * as S from './TestQuery.styled';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { evaluationRuns } from '../../data/mockData';
 import { CHART_COLORS } from '../../globals/styles/color';
+import { CheckCircle2 } from 'lucide-react';
+import { Accordion } from '../../components/Accordion';
 
 interface TestQueryViewProps {
   pipeline: string[];
-  activeModule: string | null;
+  moduleStatuses: Record<string, 'pending' | 'loading' | 'completed'>;
   messages: { sender: "user" | "bot"; text: string }[];
   handleSendMessage: (e: React.FormEvent<HTMLFormElement>) => void;
   metrics: {
@@ -18,15 +20,13 @@ interface TestQueryViewProps {
 
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
   pipeline,
-  activeModule,
+  moduleStatuses,
   messages,
   handleSendMessage,
   metrics
 }) => {
-  // 최신 데이터 가져오기
   const latestData = evaluationRuns[evaluationRuns.length - 1];
   
-  // 모듈별 메트릭 데이터 준비
   const moduleMetrics = latestData?.modules.map(module => {
     const metricDistribution: Record<string, number[]> = {};
     
@@ -39,9 +39,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       });
     });
 
-    // 각 메트릭의 점수 분포 계산
     const metricData = Object.entries(metricDistribution).map(([name, scores]) => {
-      // 점수를 0.1 단위로 구간화
       const ranges = Array.from({ length: 10 }, (_, i) => ({
         range: `${i * 10}-${(i + 1) * 10}`,
         count: 0
@@ -115,11 +113,21 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       <S.FlowPanel>
         <S.Title>Processing Flow</S.Title>
         <S.FlowList>
-          {pipeline.map((module, index) => (
-            <S.FlowItem key={module} isActive={activeModule === module}>
-              <span>{index + 1}. {module}</span>
-            </S.FlowItem>
-          ))}
+          {pipeline.map((module, index) => {
+            const status = moduleStatuses[module];
+            return (
+              <S.FlowItem 
+                key={module} 
+                isActive={status === 'loading'}
+                isCompleted={status === 'completed'}
+              >
+                {status === 'loading' && <S.Spinner />}
+                {status === 'completed' && <CheckCircle2 size={18} color="#34d399" />}
+                {status === 'pending' && <div style={{ width: '18px', height: '18px' }} />}
+                <span>{index + 1}. {module}</span>
+              </S.FlowItem>
+            );
+          })}
         </S.FlowList>
       </S.FlowPanel>
       <S.ChatPanel>
@@ -145,16 +153,31 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       </S.ChatPanel>
       <S.ResultPanel>
         <S.Title>Evaluation Result</S.Title>
-        <S.EvaluationTable>
-          {metrics.map((moduleData, moduleIndex) => 
-            moduleData.metrics.map((metric, metricIndex) => (
-              <S.TableRow key={`${moduleIndex}-${metricIndex}`}>
-                <span>{moduleData.moduleName} - {metric.name}</span>
-                <span>{(metric.score * 100).toFixed(1)}</span>
-              </S.TableRow>
-            ))
-          )}
-        </S.EvaluationTable>
+        <div>
+          {metrics.map((moduleData) => {
+            const avgScore = moduleData.metrics.length > 0
+              ? (moduleData.metrics.reduce((sum, m) => sum + m.score, 0) / moduleData.metrics.length * 100).toFixed(1)
+              : 'N/A';
+            
+            const accordionTitle = (
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <span>{moduleData.moduleName}</span>
+                <span style={{ color: '#9ca3af' }}>Avg: {avgScore}%</span>
+              </div>
+            );
+
+            return (
+              <Accordion key={moduleData.moduleName} title={accordionTitle}>
+                {moduleData.metrics.map((metric, metricIndex) => (
+                  <S.TableRow key={metricIndex}>
+                    <span>- {metric.name}</span>
+                    <span>{(metric.score * 100).toFixed(1)}%</span>
+                  </S.TableRow>
+                ))}
+              </Accordion>
+            );
+          })}
+        </div>
       </S.ResultPanel>
     </S.PageLayout>
   );

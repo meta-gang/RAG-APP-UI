@@ -162,20 +162,36 @@ interface FlowItemProps {
   isActive: boolean;
 }
 
-export const FlowItem = styled.div<FlowItemProps>`
+export const FlowItem = styled.div<{ isActive: boolean; isCompleted: boolean }>`
   padding: 1rem;
   border-radius: 0.5rem; // rounded-lg
   border-width: 2px;
   transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   
-  border-color: ${props => props.isActive ? '#22d3ee' : '#4b5563'}; // border-cyan-400 or border-gray-600
-  background-color: ${props => props.isActive ? 'rgba(34, 211, 238, 0.15)' : '#374151'}; // bg-cyan-900/50 or bg-gray-700
-  box-shadow: ${props => props.isActive ? '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' : 'none'};
+  // 조건부 스타일링
+  border-color: ${props => props.isActive ? '#22d3ee' : (props.isCompleted ? '#34d399' : '#4b5563')};
+  background-color: ${props => props.isActive ? 'rgba(34, 211, 238, 0.15)' : 'transparent'};
   
   span {
     font-weight: 600;
     color: #ffffff;
   }
+`;
+
+export const Spinner = styled.div`
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  border: 2px solid #4b5563; /* Light grey */
+  border-top: 2px solid #22d3ee; /* Blue */
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  animation: spin 1s linear infinite;
 `;
 
 export const EvaluationTable = styled.div`

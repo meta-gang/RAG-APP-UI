@@ -3,10 +3,15 @@
 import React from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { Maximize2, ArrowLeft } from 'lucide-react';
-import * as S from './Dashboard.styled'; // Styled-components import
+import * as S from './Dashboard.styled';
+import { KPICard } from '../../components/KPICard';
 
-// index.tsx 로부터 모든 상태와 핸들러 함수를 props로 내려받는다.
 interface DashboardViewProps {
+  kpiData: {
+    overallScore: string;
+    performanceChange: { value: string; isPositive: boolean; };
+    worstModule: string;
+  };
   isZoomed: boolean;
   selectedBarMetric: string | null;
   selectedDate: string;
@@ -25,8 +30,8 @@ interface DashboardViewProps {
   allModuleNames: string[];
 }
 
-// props를 받아 화면을 그리는 역할을 하는 컴포넌트
 export const DashboardView: React.FC<DashboardViewProps> = ({
+    kpiData,
     isZoomed,
     selectedBarMetric,
     selectedDate,
@@ -46,6 +51,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   return (
     <S.DashboardContainer>
+      {/* KPI 카드 섹션 */}
+      <S.GridContainer>
+        <KPICard title="Overall Score" value={kpiData.overallScore} />
+        <KPICard title="Perf. Change (vs last week)" value={kpiData.performanceChange.value} change={kpiData.performanceChange} />
+        <KPICard title="Lowest Module" value={kpiData.worstModule} />
+      </S.GridContainer>
+
+      {/* 차트 및 패널 */}
       <S.GridContainer>
         <S.MainChartWrapper>
           <S.ChartBox>
@@ -55,7 +68,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 : "RAG Performance Change"}
             </S.BoxTitle>
             {isZoomed ? (
-              // 확대 상태
               <ResponsiveContainer width="100%" height={400}>
                   <BarChart data={zoomedFrequencyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -109,7 +121,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                   r: 8, 
                                   style: { cursor: 'pointer' } 
                               }}
-                              // 현재 시점에 없는 모듈의 그래프 단절
                               connectNulls = {false}
                             />
                           );
@@ -117,10 +128,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            )
-
-            }
-            
+            )}
           </S.ChartBox>
         </S.MainChartWrapper>
         <S.SidePanelWrapper>

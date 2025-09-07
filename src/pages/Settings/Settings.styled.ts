@@ -125,12 +125,12 @@ export const Select = styled.select`
 
 export const ButtonWrapper = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between; // 양쪽 정렬
   padding-top: 1rem;
 `;
 
-export const SubmitButton = styled.button`
-  background-color: #4f46e5; // bg-indigo-600
+// 기본 버튼 스타일
+const BaseButton = styled.button`
   color: #ffffff;
   font-weight: 700;
   padding: 0.5rem 1rem;
@@ -139,11 +139,23 @@ export const SubmitButton = styled.button`
   align-items: center;
   transition: background-color 0.2s;
 
+  svg {
+    margin-right: 0.5rem;
+  }
+`;
+
+// 제출/다음 버튼 스타일
+export const SubmitButton = styled(BaseButton)`
+  background-color: #4f46e5; // bg-indigo-600
   &:hover {
     background-color: #4338ca; // hover:bg-indigo-500
   }
+`;
 
-  svg {
-    margin-right: 0.5rem;
+// 이전 버튼 스타일
+export const BackButton = styled(BaseButton)`
+  background-color: #4b5563; // bg-gray-600
+  &:hover {
+    background-color: #6b7280; // hover:bg-gray-500
   }
 `;
