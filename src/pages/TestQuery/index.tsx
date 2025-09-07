@@ -1,20 +1,71 @@
 // /src/pages/TestQuery/index.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TestQueryView } from './TestQueryView';
-import { chatEvaluationRun } from '../../data/mockUserData'; 
+// ✨ WebSocket 훅 import
+import { useRagSocket, SocketMessage } from '@hooks/useRagSocket';
 
 export const TestQueryPage: React.FC = () => {
+    // --- 기존 상태값들 ---
+    const [pipeline, setPipeline] = useState<string[]>([]);
     const [activeModule, setActiveModule] = useState<string | null>(null);
     const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([]);
-    const [metrics, setMetrics] = useState<{ moduleName: string; metrics: {name: string, score: number}[] }[]>([]);
+    const [metrics, setMetrics] = useState<{ moduleName: string; metrics: { name: string, score: number }[] }[]>([]);
+    
+    // ✨ WebSocket 훅 사용 ✨
+    const { lastMessage, sendMessage } = useRagSocket();
 
-    /*
-    현재는 pipeline = [모듈1, 모듈2 ...] 이렇게 지정해줬지만
-    프레임워크와 연결 시 RAGContainer에 있는 모듈 이름을 자동으로 가져와서 리스트에 저장해야 함
-    + 현재 리스트 형식은 Linear 구조에 대해서만 반짝이로 보여줄 수 있는데, 사이클이나 if문 등 Non linear 구조에서는 위반짝 아래반짝 다시 위반짝 이런 식으로 가야 될 듯
-    프레임워크로부터 linker 받아와서 의존 구조에 맞춰서 반짝이게..?
-    */
-    const pipeline = ["MyRetrievalModule", "MyPostRetrievalModule", "MyGenerationModule"];
+    // ✨ WebSocket으로부터 메시지를 수신할 때마다 상태 업데이트 ✨
+    useEffect(() => {
+        if (!lastMessage) return;
+
+        switch (lastMessage.type) {
+            case 'rag-container':
+                // 파이프라인 구조 설정
+                if (lastMessage['rag-container']) {
+                    setPipeline(lastMessage['rag-container']);
+                }
+                break;
+            case 'module-status':
+                // 모듈 상태 업데이트 (시각 효과)
+                if (lastMessage.module && lastMessage.status === 'start') {
+                    setActiveModule(lastMessage.module);
+                } else if (lastMessage.module && lastMessage.status === 'done') {
+                    // 필요 시 '완료' 상태 처리
+                }
+                break;
+            case 'metric':
+                // 메트릭 결과 업데이트
+                if (lastMessage.module && lastMessage.metric) {
+                    setMetrics(prev => {
+                        const newMetrics = [...prev];
+                        const moduleIndex = newMetrics.findIndex(m => m.moduleName === lastMessage.module);
+                        const metricData = Object.entries(lastMessage.metric!).map(([name, score]) => ({ name, score }));
+                        
+                        if (moduleIndex > -1) {
+                            newMetrics[moduleIndex].metrics.push(...metricData);
+                        } else {
+                            newMetrics.push({ moduleName: lastMessage.module!, metrics: metricData });
+                        }
+                        return newMetrics;
+                    });
+                }
+                break;
+            case 'data':
+                 // 최종 답변(data) 처리
+                if (lastMessage.data?.answer) {
+                    setActiveModule(null); // 모든 프로세스 종료
+                    setMessages((prev) => [...prev, { sender: "bot", text: lastMessage.data!.answer }]);
+                }
+                break;
+            case 'error':
+                // 에러 처리
+                const errorText = `Error in ${lastMessage.module}: ${lastMessage.message}`;
+                setMessages((prev) => [...prev, { sender: "bot", text: errorText }]);
+                setActiveModule(null);
+                break;
+        }
+    }, [lastMessage]);
+
 
     const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -22,51 +73,16 @@ export const TestQueryPage: React.FC = () => {
         const query = input.value;
         if (!query) return;
 
+        // 초기화
         setMessages((prev) => [...prev, { sender: "user", text: query }]);
+        setMetrics([]);
         input.value = "";
 
-        // chatEvaluationRun에서 query에 맞는 answer 찾기
-        let answer = "";
-        let foundAnswer = false;
-        const metricsData: { moduleName: string; metrics: {name: string, score: number}[] }[] = [];
-
-        for (const run of chatEvaluationRun) {
-            for (const module of run.modules) {
-                const found = module.queries.find(q => q.query === query);
-                if (found) {
-                    answer = found.answer;
-                    foundAnswer = true;
-                    // 모든 모듈의 metrics를 하나의 배열로 합침
-                    // 각 모듈의 metrics를 저장
-                    metricsData.push({
-                        moduleName: module.moduleName,
-                        metrics: found.metrics
-                    });
-                }
-            }
-            if (foundAnswer) break;
-        }
-
-        if (!answer) {
-        answer = `There is no answer for "${query}".`;
-        }
-
-        let i = 0;
-        // 현재는 setInterval로 0.7초마다 activeModule을 순서대로 변경하고 있음
-        const interval = setInterval(() => {
-            if (i < pipeline.length) {
-                setActiveModule(pipeline[i]);
-                i++;
-            } else {
-                clearInterval(interval);
-                setActiveModule(null);
-                setMessages((prev) => [
-                    ...prev,
-                    { sender: "bot", text: answer },
-                ]);
-                setMetrics(metricsData);
-            }
-        }, 700);
+        // ✨ 백엔드로 작업 시작 메시지 전송 ✨
+        sendMessage({
+            type: "start-job",
+            query: query,
+        });
     };
 
     return (
