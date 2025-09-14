@@ -8,7 +8,28 @@ import { chatEvaluationRun } from '../../data/mockUserData';
 type ModuleStatus = 'pending' | 'loading' | 'completed';
 
 export const TestQueryPage: React.FC = () => {
-    const pipeline = ["MyPreRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyGenerationModule"];
+    // const pipeline = ["MyPreRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyGenerationModule"];
+    type ModulePair = [string, string];
+    const modulePairs: ModulePair[] = [
+        ["MyPreRetrievalModule", "MyRetrievalModule"],
+        ["MyRetrievalModule", "MyPostRetrievalModule"],
+        ["MyPostRetrievalModule", "MyRetrievalModule"],
+        ["MyRetrievalModule", "MyPostRetrievalModule"],
+        ["MyPostRetrievalModule", "MyRetrievalModule"],
+        ["MyRetrievalModule", "MyPostRetrievalModule"],
+        ["MyPostRetrievalModule", "MyRetrievalModule2"],
+        ["MyRetrievalModule2", "MyPostRetrievalModule2"],
+        ["MyPostRetrievalModule2", "MyRetrievalModule2"],
+        ["MyRetrievalModule2", "MyPostRetrievalModule2"],
+        ["MyPostRetrievalModule2", "MyGenerationModule"]
+    ];
+    // module의 연결쌍 실행 순서대로 펼친 배열 생성
+    const pipeline = modulePairs.reduce((acc: string[], [from, to]) => {
+        if (acc.length === 0) {
+            return [from, to];
+        }
+        return [...acc, to];
+    }, []);
     const pipelineSet = Array.from(new Set(pipeline))  // 단일 모듈 출력만을 위한 집합
 
     // useState를 useRecoilState로 변경하여 전역 상태 사용
@@ -98,6 +119,7 @@ export const TestQueryPage: React.FC = () => {
         <TestQueryView
             pipeline={pipeline}
             pipelineSet={pipelineSet}
+            modulePairs={modulePairs}
             moduleStatuses={tqState.moduleStatuses}
             messages={tqState.messages}
             handleSendMessage={handleSendMessage}

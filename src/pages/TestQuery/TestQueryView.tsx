@@ -10,6 +10,7 @@ import { Accordion } from '../../components/Accordion';
 interface TestQueryViewProps {
   pipeline: string[];
   pipelineSet: string[];
+  modulePairs: [string, string][];
   moduleStatuses: Record<string, 'pending' | 'loading' | 'completed'>;
   messages: { sender: "user" | "bot"; text: string }[];
   metrics: {
@@ -23,6 +24,7 @@ interface TestQueryViewProps {
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
   pipeline,
   pipelineSet,
+  modulePairs,
   moduleStatuses,
   messages,
   handleSendMessage,
@@ -68,8 +70,8 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
         <S.FlowList>
           {pipelineSet.map((module, index) => {
             const status = moduleStatuses[module] || 'pending';
-            const isCurrentlyProcessing = pipeline.findIndex((m, i) => 
-              m === module && moduleStatuses[pipeline[i]] === 'loading') !== -1;
+            const isCurrentlyProcessing = pipeline.findIndex((m) => 
+              m === module && moduleStatuses[m] === 'loading') !== -1;
             return (
               <S.FlowItem 
                 key={module} 
