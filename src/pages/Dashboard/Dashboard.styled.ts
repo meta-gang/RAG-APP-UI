@@ -35,6 +35,8 @@ export const ChartBox = styled.div`
   border-radius: 0.75rem; // rounded-xl
   border: 1px solid #374151; // border-gray-700
   height: 100%;
+  display: flex;
+  flex-direction: column;
 `;
 
 export const BoxHeader = styled.div`
@@ -127,4 +129,35 @@ export const NoDataText = styled.p`
   color: #9ca3af; // text-gray-400
   text-align: center;
   padding-top: 2.5rem; // pt-10
+`;
+
+export const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+export const ZoomedViewContainer = styled.div`
+    display: flex;
+    gap: 1.5rem;
+    flex-grow: 1;
+    min-height: 0;
+    height: 100%;
+`;
+
+export const ZoomedChartWrapper = styled.div`
+    flex: 3;
+`;
+
+export const ZoomedQueryWrapper = styled.div`
+    flex: 2;
+    display: flex;
+    flex-direction: column;
 `;
