@@ -30,6 +30,12 @@ export const GlobalStyle = createGlobalStyle`
     }
   }
 
+  *:focus-visible {
+    outline: 2px solid #60a5fa; /* 파란색 계열의 선명한 외곽선 */
+    outline-offset: 2px;
+    border-radius: 0.25rem; /* 약간의 둥근 모서리 */
+  }
+
   /* 스크롤바 디자인 개선 코드 추가 */
   /* Chrome, Safari, Edge 등 Webkit 기반 브라우저 타겟 */
   ::-webkit-scrollbar {
