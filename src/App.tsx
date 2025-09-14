@@ -7,14 +7,13 @@ import { TestQueryPage } from './pages/TestQuery';
 import { SettingsPage } from './pages/Settings';
 import { GlobalStyle } from '@styles/GlobalStyle';
 
-// App.tsx 내부의 최상위 div 스타일링
 const AppContainer = styled.div`
-  max-width: 1600px; // max-w-screen-2xl 근사치
+  max-width: 1600px;
   margin: 0 auto;
 `;
 
 const MainContent = styled.main`
-  margin-top: 1.5rem; // mt-6
+  margin-top: 1.5rem;
 `;
 
 const App: React.FC = () => {

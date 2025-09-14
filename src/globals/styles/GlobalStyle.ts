@@ -1,5 +1,4 @@
 // /src/globals/styles/GlobalStyle.ts
-
 import { createGlobalStyle, styled } from "styled-components";
 import NotoSansBlack from "@assets/fonts/NotoSans-Black.woff2";
 import NotoSansBold from "@assets/fonts/NotoSans-Bold.woff2";
@@ -30,6 +29,7 @@ export const GlobalStyle = createGlobalStyle`
     }
   }
 
+  /* ✨ [추가] 키보드 포커스 접근성 향상 스타일 */
   *:focus-visible {
     outline: 2px solid #60a5fa; /* 파란색 계열의 선명한 외곽선 */
     outline-offset: 2px;

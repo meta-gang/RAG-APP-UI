@@ -2,9 +2,13 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { Expand, ArrowLeft } from 'lucide-react';
+import { Expand, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as S from './Dashboard.styled';
 import { KPICard } from '../../components/KPICard';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
 
 interface DashboardViewProps {
   kpiData: {
@@ -37,11 +41,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   return (
     <S.DashboardContainer>
-      <S.GridContainer>
-        <KPICard title="Overall Score" value={kpiData.overallScore} />
-        <KPICard title="Perf. Change (vs last week)" value={kpiData.performanceChange.value} change={kpiData.performanceChange} />
-        <KPICard title="Lowest Module" value={kpiData.worstModule} />
-      </S.GridContainer>
+      {/* ✨ [수정] KPI 카드 섹션을 Swiper 캐러셀로 변경합니다. */}
+      <S.KpiCardWrapper>
+        <Swiper
+          modules={[Navigation]}
+          spaceBetween={24}
+          slidesPerView={'auto'}
+          navigation={{
+            nextEl: '.arrow-right',
+            prevEl: '.arrow-left',
+          }}
+          className="swiper-container"
+        >
+          <SwiperSlide>
+            <KPICard title="Overall Score" value={kpiData.overallScore} />
+          </SwiperSlide>
+          <SwiperSlide>
+            <KPICard title="Perf. Change (vs last week)" value={kpiData.performanceChange.value} change={kpiData.performanceChange} />
+          </SwiperSlide>
+          <SwiperSlide>
+            <KPICard title="Lowest Module" value={kpiData.worstModule} />
+          </SwiperSlide>
+        </Swiper>
+        <S.CarouselArrow className="arrow-left"><ChevronLeft size={20} /></S.CarouselArrow>
+        <S.CarouselArrow className="arrow-right"><ChevronRight size={20} /></S.CarouselArrow>
+      </S.KpiCardWrapper>
 
       <S.GridContainer>
         <S.MainChartWrapper>
@@ -111,19 +135,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 width: '80%',
                 maxWidth: '900px',
                 height: '60vh',
-                backgroundColor: '#1f2937',
+                backgroundColor: 'rgba(31, 41, 55, 0.6)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '0.75rem',
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{padding: '1rem', height: '100%', display: 'flex', flexDirection: 'column'}}>
                 <S.BoxHeader>
-                  <S.BoxTitle title={`[Zoomed] ${zoomedMetric} on ${selectedDate}`}>
-                    {`[Zoomed] ${zoomedMetric} on ${selectedDate}`}
-                  </S.BoxTitle>
-                  <S.IconButton onClick={handleZoomOut}>
-                    <ArrowLeft size={18} />
-                  </S.IconButton>
+                  <S.BoxTitle title={`[Zoomed] ${zoomedMetric} on ${selectedDate}`}>{`[Zoomed] ${zoomedMetric} on ${selectedDate}`}</S.BoxTitle>
+                  <S.IconButton onClick={handleZoomOut}><ArrowLeft size={18} /></S.IconButton>
                 </S.BoxHeader>
                 <S.ZoomedViewContainer>
                     <S.ZoomedChartWrapper>
@@ -167,14 +189,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </AnimatePresence>
       
       <div>
-        <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>
-          Metric Performance Breakdown
-        </S.BoxTitle>
+        <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>Metric Performance Breakdown</S.BoxTitle>
         <S.GridContainer style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))' }}>
           {Object.entries(metricPerformanceBreakdownData).map(([metricName, data]) => (
             <S.ChartBox key={metricName}>
               <S.BoxTitleH3 style={{ marginBottom: '0.5rem' }}>{metricName}</S.BoxTitleH3>
-              {/* ✨ [수정] 차트 높이 문제를 해결하기 위해 원래의 안정적인 코드로 복원합니다. */}
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={data}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -188,11 +207,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         const colorIdx = allModuleNames.indexOf(moduleName);
                         return (
                           <Line
-                              key={moduleName}
-                              type="monotone"
-                              dataKey={moduleName}
-                              stroke={moduleColors[colorIdx % moduleColors.length]}
-                              strokeWidth={2}
+                              key={moduleName} type="monotone" dataKey={moduleName}
+                              stroke={moduleColors[colorIdx % moduleColors.length]} strokeWidth={2}
                               connectNulls={false}
                           />
                         );

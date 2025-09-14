@@ -1,3 +1,4 @@
+// config/webpack.prod.js
 const { merge } = require("webpack-merge");
 const common = require("./webpack.common");
 const path = require("path");
@@ -5,6 +6,7 @@ const path = require("path");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const { GenerateSW } = require('workbox-webpack-plugin');
 
 module.exports = merge(common, {
   mode: "production",
@@ -17,16 +19,21 @@ module.exports = merge(common, {
   },
   module: {
     rules: [
-      // .scss와 .sass 파일을 위한 규칙
+      // 1. SCSS와 SASS 파일을 위한 규칙
       {
-        test: /\.(sa|sc|c)ss$/i,
-        use: ["style-loader", "css-loader", "sass-loader"],
+        test: /\.(sa|sc)ss$/i,
+        use: [MiniCssExtractPlugin.loader, "css-loader", "sass-loader"],
+      },
+      // 2. CSS 파일만을 위한 규칙
+      {
+        test: /\.css$/i,
+        use: [MiniCssExtractPlugin.loader, "css-loader"],
       },
     ],
   },
   plugins: [
     new MiniCssExtractPlugin(),
-    new GenerateSW({  // generate service worker only in prod mode
+    new GenerateSW({
       include: [/\.html$/, /\.js$/],
       maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
     }),

@@ -8,14 +8,11 @@ import { CHART_COLORS } from '@styles/color';
 const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (item: any) => boolean) => {
     const compressedData = [];
     let consecutiveNulls = 0;
-
     for (let i = 0; i < data.length; i++) {
         if (keyCheck(data[i])) {
             if (consecutiveNulls > 2) {
                 const ellipsisEntry: any = { date: `... (${consecutiveNulls} omitted)` };
-                allModuleNames.forEach(name => {
-                    ellipsisEntry[name] = null;
-                });
+                allModuleNames.forEach(name => { ellipsisEntry[name] = null; });
                 compressedData.push(ellipsisEntry);
             }
             compressedData.push(data[i]);
@@ -30,26 +27,20 @@ const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (ite
     return compressedData;
 };
 
-
 export const DashboardPage: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
     const [selectedModule, setSelectedModule] = useState<string>(evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName);
-    
     const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
     const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
 
     const allModuleNames = useMemo(() => {
         const names = new Set<string>();
-        evaluationRuns.forEach(run => {
-            run.modules.forEach(module => names.add(module.moduleName));
-        });
+        evaluationRuns.forEach(run => { run.modules.forEach(module => names.add(module.moduleName)); });
         return Array.from(names);
     }, []);
     
     const kpiData = useMemo(() => {
-        if (evaluationRuns.length === 0) {
-            return { overallScore: 'N/A', performanceChange: { value: 'N/A', isPositive: true }, worstModule: 'N/A' };
-        }
+        if (evaluationRuns.length === 0) return { overallScore: 'N/A', performanceChange: { value: 'N/A', isPositive: true }, worstModule: 'N/A' };
         const latestRun = evaluationRuns[evaluationRuns.length - 1];
         let totalScore = 0, metricCount = 0;
         latestRun.modules.forEach(m => m.queries.forEach(q => q.metrics.forEach(metric => {
@@ -57,7 +48,6 @@ export const DashboardPage: React.FC = () => {
             metricCount++;
         })));
         const overallScore = metricCount > 0 ? `${(totalScore / metricCount * 100).toFixed(1)}%` : '0%';
-
         let performanceChange = { value: '+0.0%', isPositive: true };
         if (evaluationRuns.length > 1) {
             const previousRun = evaluationRuns[evaluationRuns.length - 2];
@@ -71,7 +61,6 @@ export const DashboardPage: React.FC = () => {
             const change = (latestAvg - prevAvg) * 100;
             performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
         }
-
         let worstModule = 'N/A', minScore = Infinity;
         latestRun.modules.forEach(module => {
             if (module.queries.length === 0) return;
@@ -119,7 +108,6 @@ export const DashboardPage: React.FC = () => {
         const breakdown: { [metricName: string]: any[] } = {};
         const allMetrics = new Set<string>();
         evaluationRuns.forEach(r => r.modules.forEach(m => m.queries.forEach(q => q.metrics.forEach(metric => allMetrics.add(metric.name)))));
-
         allMetrics.forEach(metricName => {
             const rawData = evaluationRuns.map(run => {
                 const entry: { date: string, [key: string]: number | string | null } = { date: run.date };
@@ -139,7 +127,6 @@ export const DashboardPage: React.FC = () => {
             });
             breakdown[metricName] = compressChartData(rawData, allModuleNames, (item) => item._hasData);
         });
-
         return breakdown;
     }, [allModuleNames]);
 

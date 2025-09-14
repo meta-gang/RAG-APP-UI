@@ -1,3 +1,4 @@
+// config/webpack.dev.js
 const { merge } = require("webpack-merge");
 const common = require("./webpack.common");
 
@@ -18,10 +19,14 @@ module.exports = merge(common, {
   },
   module: {
     rules: [
-      // .scss와 .sass 파일을 위한 규칙
       {
         test: /\.(sa|sc)ss$/i,
         use: ["style-loader", "css-loader", "sass-loader"],
+      },
+      // 2. CSS 파일만을 위한 규칙 (sass-loader 없음)
+      {
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"],
       },
     ],
   },

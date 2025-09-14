@@ -17,6 +17,67 @@ export const GridContainer = styled.div`
   }
 `;
 
+// ✨ [추가] KPI 카드 캐러셀을 위한 스타일
+export const KpiCardWrapper = styled.div`
+  position: relative; // 화살표 버튼의 기준점이 되도록 설정
+  
+  // Swiper 컨테이너의 기본 스타일
+  // sm- 640px 이상일 때만 좌우 화살표 공간 확보
+  @media (min-width: 640px) {
+    .swiper-container {
+      padding: 0 2.5rem;
+    }
+  }
+
+  // Swiper 슬라이드 아이템 스타일
+  .swiper-slide {
+    width: auto; // 콘텐츠 크기에 맞게 너비 조절
+  }
+`;
+
+// ✨ [추가] 캐러셀 좌우 화살표 버튼 스타일
+export const CarouselArrow = styled.button`
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: none; // 모바일에서는 기본적으로 숨김
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  // sm- 640px 이상일 때만 버튼을 보여줌
+  @media (min-width: 640px) {
+    display: flex;
+  }
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  // disabled 상태일 때 (더 이상 넘길 수 없을 때)
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  // 왼쪽, 오른쪽 버튼 위치 지정
+  &.arrow-left {
+    left: 0;
+  }
+
+  &.arrow-right {
+    right: 0;
+  }
+`;
+
 export const MainChartWrapper = styled.div`
   @media (min-width: 1024px) {
     grid-column: span 2 / span 2;
