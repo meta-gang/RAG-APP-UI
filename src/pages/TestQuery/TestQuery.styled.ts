@@ -7,9 +7,8 @@ export const PageLayout = styled.div`
   gap: 1.5rem; // gap-6
 
   @media (min-width: 1024px) {
-    /* 데스크탑 화면에서 그리드 레이아웃 정의 */
     grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: auto auto auto auto; /* 행 높이를 콘텐츠에 맞게 자동 조절 */
+    grid-template-rows: auto auto auto auto;
   }
 `;
 
@@ -24,36 +23,36 @@ export const Panel = styled.div`
 
 export const FlowPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / 2; /* 1번째 열 차지 */
-    grid-row: 1 / 2;    /* 1번째 행 차지 */
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
   }
 `;
 
 export const ChatPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 2 / 4; /* 2, 3번째 열 차지 */
-    grid-row: 1 / 2;    /* 1번째 행 차지 */
+    grid-column: 2 / 4;
+    grid-row: 1 / 2;
   }
 `;
 
 export const ResultPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / -1; /* 전체 열 차지 */
-    grid-row: 2 / 3;     /* 2번째 행 차지 */
+    grid-column: 1 / -1;
+    grid-row: 2 / 3;
   }
 `;
 
 export const LiveScorePanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / -1; /* 전체 열 차지 */
-    grid-row: 3 / 4;     /* 3번째 행 차지 */
+    grid-column: 1 / -1;
+    grid-row: 3 / 4;
   }
 `;
 
 export const MetricsPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / -1; /* 전체 열 차지 */
-    grid-row: 4 / 5;     /* 3번째 행 차지 */
+    grid-column: 1 / -1;
+    grid-row: 4 / 5;
   }
 `;
 
@@ -173,7 +172,6 @@ export const TableRow = styled.div`
   }
 `;
 
-// --- 채팅창 높이 고정 ---
 export const MessageArea = styled.div`
   flex-grow: 1;
   min-height: 0;
@@ -182,7 +180,7 @@ export const MessageArea = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  max-height: 200px; /* 채팅창 최대 높이 고정 */
+  max-height: 200px;
 `;
 
 interface MessageWrapperProps {
@@ -224,13 +222,17 @@ export const StyledInput = styled.input`
 `;
 
 export const SendButton = styled.button`
-  background-color: #4f46e5;
+  background-color: #4f46e5; // Primary Action Color (indigo)
   color: #ffffff;
   font-weight: 600;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
+  padding: 0.5rem 1rem; // 패딩 조정
+  border-radius: 0.375rem; // 둥근 모서리
+  border: none; // 테두리 제거
+  cursor: pointer;
+  transition: background-color 0.2s; // 부드러운 전환 효과
+
   &:hover {
-    background-color: #4338ca;
+    background-color: #4338ca; // 호버 시 약간 더 어두운 색
   }
 `;
 

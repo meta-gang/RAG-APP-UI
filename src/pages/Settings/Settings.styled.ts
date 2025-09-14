@@ -52,8 +52,8 @@ export const OptionBox = styled.label<OptionBoxProps>`
   background-color: #374151; // bg-gray-700
   border-radius: 0.5rem; // rounded-lg
   cursor: pointer;
-  border: 2px solid ${(props) => (props.isSelected ? '#6366f1' : 'transparent')}; // has-[:checked]:border-indigo-500
-  background-color: ${(props) => (props.isSelected ? 'rgba(79, 70, 229, 0.15)' : '#374151')}; // has-[:checked]:bg-indigo-900/50
+  border: 2px solid ${(props) => (props.isSelected ? '#6366f1' : 'transparent')};
+  background-color: ${(props) => (props.isSelected ? 'rgba(79, 70, 229, 0.15)' : '#374151')};
 
   & > div {
     opacity: ${(props) => (props.isSelected ? 1 : 0.7)};
@@ -125,37 +125,34 @@ export const Select = styled.select`
 
 export const ButtonWrapper = styled.div`
   display: flex;
-  justify-content: space-between; // 양쪽 정렬
+  justify-content: space-between;
   padding-top: 1rem;
 `;
 
-// 기본 버튼 스타일
+// ✨ [수정] BaseButton에 공통 스타일을 정의합니다.
 const BaseButton = styled.button`
   color: #ffffff;
-  font-weight: 700;
+  font-weight: 600; // font-weight 통일
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem; // border-radius 통일
+  border: none; // 테두리 제거
   display: flex;
   align-items: center;
+  gap: 0.5rem; // 아이콘과 텍스트 간격
   transition: background-color 0.2s;
-
-  svg {
-    margin-right: 0.5rem;
-  }
+  cursor: pointer;
 `;
 
-// 제출/다음 버튼 스타일
 export const SubmitButton = styled(BaseButton)`
-  background-color: #4f46e5; // bg-indigo-600
+  background-color: #4f46e5; // Indigo
   &:hover {
-    background-color: #4338ca; // hover:bg-indigo-500
+    background-color: #4338ca; // Darker Indigo
   }
 `;
 
-// 이전 버튼 스타일
 export const BackButton = styled(BaseButton)`
-  background-color: #4b5563; // bg-gray-600
+  background-color: #374151; // Dark Gray
   &:hover {
-    background-color: #6b7280; // hover:bg-gray-500
+    background-color: #4b5563; // Lighter Gray
   }
 `;
