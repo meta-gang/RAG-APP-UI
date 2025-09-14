@@ -8,8 +8,9 @@ import { chatEvaluationRun } from '../../data/mockUserData';
 type ModuleStatus = 'pending' | 'loading' | 'completed';
 
 export const TestQueryPage: React.FC = () => {
-    const pipeline = ["MyRetrievalModule", "MyPostRetrievalModule", "MyGenerationModule"];
-    
+    const pipeline = ["MyPreRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyGenerationModule"];
+    const pipelineSet = Array.from(new Set(pipeline))  // 단일 모듈 출력만을 위한 집합
+
     // useState를 useRecoilState로 변경하여 전역 상태 사용
     const [tqState, setTqState] = useRecoilState(testQueryState);
 
@@ -96,6 +97,7 @@ export const TestQueryPage: React.FC = () => {
     return (
         <TestQueryView
             pipeline={pipeline}
+            pipelineSet={pipelineSet}
             moduleStatuses={tqState.moduleStatuses}
             messages={tqState.messages}
             handleSendMessage={handleSendMessage}
