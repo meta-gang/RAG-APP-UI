@@ -9,9 +9,7 @@ import { Accordion } from '../../components/Accordion';
 import ReactFlow, { 
   Controls, 
   Background, 
-  MarkerType, 
-  Node as FlowNode, 
-  Edge as FlowEdge,
+  MarkerType,
   Handle,
   Position
 } from 'reactflow';
@@ -39,8 +37,26 @@ const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
         position: 'relative'
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ background: '#374151' }} />
-      <Handle type="source" position={Position.Bottom} style={{ background: '#374151' }} />
+      <Handle 
+        type="target" 
+        position={Position.Top}
+        style={{ 
+          background: '#374151',
+          width: '8px',
+          height: '8px',
+          top: '-4px'
+        }} 
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom}
+        style={{ 
+          background: '#374151',
+          width: '8px',
+          height: '8px',
+          bottom: '-4px'
+        }} 
+      />
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
@@ -64,7 +80,8 @@ interface TestQueryViewProps {
   pipelineSet: string[];
   modulePairs: [string, string][];
   moduleStatuses: Record<string, 'pending' | 'loading' | 'completed'>;
-  currentPair: [string, string] | null;  // 현재 실행 중인 모듈 쌍 추가
+  activeConnections: [string, string][];  // 현재 활성화된 모든 연결
+  modulePositions: Record<string, { x: number; y: number }>;  // BFS로 계산된 모듈 위치
   messages: { sender: "user" | "bot"; text: string }[];
   metrics: {
     moduleName: string;
@@ -79,7 +96,8 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   pipelineSet,
   modulePairs,
   moduleStatuses,
-  currentPair,
+  activeConnections,
+  modulePositions,
   messages,
   handleSendMessage,
   metrics,
@@ -123,11 +141,11 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
         </S.TestQueryHeader>
         <div style={{ width: '100%', height: '600px' }}>
           <ReactFlow
-            proOptions={{ hideAttribution: true }}  // minimap 버튼 숨기기
+            proOptions={{ hideAttribution: true }}
             nodes={pipelineSet.map((module, index) => ({
               id: module,
               type: 'moduleNode',
-              position: { x: 200, y: 100 + (index * 150)},
+              position: modulePositions[module],
               data: { 
                 label: module,
                 status: moduleStatuses[module] || 'pending'
@@ -141,17 +159,24 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
               id: `${source}-${target}-${index}`,
               source,
               target,
-              type: 'smoothstep',
+              type: 'default',  // smoothstep 대신 default 사용
               // 현재 실행 중인 모듈 쌍과 일치할 때만 애니메이션 적용
-              animated: currentPair !== null && 
-                      currentPair[0] === source && 
-                      currentPair[1] === target && 
-                      moduleStatuses[source] === 'loading',
+              animated: moduleStatuses[source] === 'loading' && 
+                      activeConnections.some(([s, t]) => s === source && t === target),
               markerEnd: {
                 type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+                color: '#ffffffff',
               },
               style: {
                 stroke: '#ffffffff',
+                strokeWidth: 2,
+              },
+              // 연결선 경로 커스터마이징
+              pathOptions: {
+                offset: index * 20,  // 겹치는 선들을 옆으로 이동
+                borderRadius: 20,  // 모서리를 부드럽게
               }
             }))}
             nodeTypes={{ moduleNode: ModuleNode }}

@@ -19,14 +19,14 @@ interface TestQueryState {
   messages: { sender: "user" | "bot"; text: string }[];
   metrics: { moduleName: string; metrics: { name: string, score: number }[] }[];
   moduleStatuses: Record<string, ModuleStatus>;
-  currentPair: [string, string] | null;  // 현재 실행 중인 모듈 쌍
+  activeConnections: [string, string][];  // 현재 활성화된 모든 연결
 }
 
 const defaultTestQueryState: TestQueryState = {
   messages: [],
   metrics: [],
   moduleStatuses: {},
-  currentPair: null,
+  activeConnections: [],
 };
 
 export const testQueryState = atom<TestQueryState>({
