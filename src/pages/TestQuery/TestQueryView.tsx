@@ -6,12 +6,65 @@ import { evaluationRuns } from '../../data/mockData';
 import { CHART_COLORS } from '../../globals/styles/color';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Accordion } from '../../components/Accordion';
+import ReactFlow, { 
+  Controls, 
+  Background, 
+  MarkerType, 
+  Node as FlowNode, 
+  Edge as FlowEdge,
+  Handle,
+  Position
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+
+const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
+  return (
+    <div
+      style={{
+        padding: '24px 32px',
+        borderRadius: '12px',
+        background: data.status === 'loading' 
+          ? 'rgba(52, 211, 153, 0.2)' 
+          : data.status === 'completed'
+          ? 'rgba(52, 211, 153, 0.1)'
+          : 'rgba(55, 65, 81, 0.3)',
+        border: '2px solid #374151',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+        color: '#E5E7EB',
+        minWidth: '300px',
+        width: '100%',
+        whiteSpace: 'nowrap',
+        overflow: 'visible',
+        transition: 'all 0.3s ease',
+        position: 'relative'
+      }}
+    >
+      <Handle type="target" position={Position.Top} style={{ background: '#374151' }} />
+      <Handle type="source" position={Position.Bottom} style={{ background: '#374151' }} />
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '16px',
+        fontSize: '16px',
+        fontWeight: 600
+      }}>
+        <div style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {data.status === 'loading' && <S.Spinner />}
+          {data.status === 'completed' && <CheckCircle2 size={24} color="#34d399" />}
+          {data.status === 'pending' && <div style={{ width: '24px', height: '24px' }} />}
+        </div>
+        <span style={{ flexGrow: 1 }}>{data.label}</span>
+      </div>
+    </div>
+  );
+};
 
 interface TestQueryViewProps {
   pipeline: string[];
   pipelineSet: string[];
   modulePairs: [string, string][];
   moduleStatuses: Record<string, 'pending' | 'loading' | 'completed'>;
+  currentPair: [string, string] | null;  // 현재 실행 중인 모듈 쌍 추가
   messages: { sender: "user" | "bot"; text: string }[];
   metrics: {
     moduleName: string;
@@ -26,6 +79,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   pipelineSet,
   modulePairs,
   moduleStatuses,
+  currentPair,
   messages,
   handleSendMessage,
   metrics,
@@ -67,25 +121,47 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             <RefreshCw size={14} />
           </S.ResetButton>
         </S.TestQueryHeader>
-        <S.FlowList>
-          {pipelineSet.map((module, index) => {
-            const status = moduleStatuses[module] || 'pending';
-            const isCurrentlyProcessing = pipeline.findIndex((m) => 
-              m === module && moduleStatuses[m] === 'loading') !== -1;
-            return (
-              <S.FlowItem 
-                key={module} 
-                isActive={status === 'loading' || isCurrentlyProcessing}
-                isCompleted={status === 'completed'}
-              >
-                {status === 'loading' && <S.Spinner />}
-                {status === 'completed' && <CheckCircle2 size={18} color="#34d399" />}
-                {status === 'pending' && <div style={{ width: '18px', height: '18px' }} />}
-                <span>{index + 1}. {module}</span>
-              </S.FlowItem>
-            );
-          })}
-        </S.FlowList>
+        <div style={{ width: '100%', height: '600px' }}>
+          <ReactFlow
+            proOptions={{ hideAttribution: true }}  // minimap 버튼 숨기기
+            nodes={pipelineSet.map((module, index) => ({
+              id: module,
+              type: 'moduleNode',
+              position: { x: 200, y: 100 + (index * 150)},
+              data: { 
+                label: module,
+                status: moduleStatuses[module] || 'pending'
+              },
+              draggable: false,
+              style: {
+                width: 300
+              }
+            }))}
+            edges={modulePairs.map(([source, target], index) => ({
+              id: `${source}-${target}-${index}`,
+              source,
+              target,
+              type: 'smoothstep',
+              // 현재 실행 중인 모듈 쌍과 일치할 때만 애니메이션 적용
+              animated: currentPair !== null && 
+                      currentPair[0] === source && 
+                      currentPair[1] === target && 
+                      moduleStatuses[source] === 'loading',
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+              },
+              style: {
+                stroke: '#ffffffff',
+              }
+            }))}
+            nodeTypes={{ moduleNode: ModuleNode }}
+            fitView
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          >
+            <Background />
+            <Controls />
+          </ReactFlow>
+        </div>
       </S.FlowPanel>
 
       <S.ChatPanel>

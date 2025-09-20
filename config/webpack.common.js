@@ -27,6 +27,10 @@ module.exports = {
         test: /\.(woff|woff2|eot|ttf|otf)$/i,
         use: ['file-loader'],
       },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader'],
+      },
     ],
   },
   plugins: [

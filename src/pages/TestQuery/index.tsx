@@ -11,7 +11,7 @@ export const TestQueryPage: React.FC = () => {
     // const pipeline = ["MyPreRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule", "MyPostRetrievalModule", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyRetrievalModule2", "MyPostRetrievalModule2", "MyGenerationModule"];
     type ModulePair = [string, string];
     const modulePairs: ModulePair[] = [
-        ["MyPreRetrievalModule", "MyRetrievalModule"],
+        ["Pre", "MyRetrievalModule"],
         ["MyRetrievalModule", "MyPostRetrievalModule"],
         ["MyPostRetrievalModule", "MyRetrievalModule"],
         ["MyRetrievalModule", "MyPostRetrievalModule"],
@@ -92,7 +92,14 @@ export const TestQueryPage: React.FC = () => {
             }
             
             if (i < pipeline.length) {
-                setTqState(prev => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i]]: 'loading' }}));
+                // 현재 실행 중인 모듈과 다음 모듈을 쌍으로 저장
+                const currentModule = pipeline[i];
+                const nextModule = pipeline[i + 1];
+                setTqState(prev => ({ 
+                    ...prev, 
+                    moduleStatuses: { ...prev.moduleStatuses, [currentModule]: 'loading' },
+                    currentPair: nextModule ? [currentModule, nextModule] : null
+                }));
                 i++;
             } else {
                 clearInterval(interval);
@@ -112,6 +119,7 @@ export const TestQueryPage: React.FC = () => {
             messages: [],
             metrics: [],
             moduleStatuses: initialStatuses,
+            currentPair: null
         });
     };
 
@@ -121,6 +129,7 @@ export const TestQueryPage: React.FC = () => {
             pipelineSet={pipelineSet}
             modulePairs={modulePairs}
             moduleStatuses={tqState.moduleStatuses}
+            currentPair={tqState.currentPair}
             messages={tqState.messages}
             handleSendMessage={handleSendMessage}
             metrics={tqState.metrics}

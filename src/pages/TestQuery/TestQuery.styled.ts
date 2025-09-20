@@ -22,17 +22,11 @@ export const Panel = styled.div`
   flex-direction: column;
 `;
 
-/*
-export const FlowPanel = styled(Panel)`
-  @media (min-width: 768px) {
-    grid-column: span 1 / span 1;
-  }
-`;
-*/
 export const FlowPanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 1 / 2; /* 1번째 열 차지 */
     grid-row: 1 / 2;    /* 1번째 행 차지 */
+    height: 600px;      /* ReactFlow를 위한 고정 높이 */
   }
 `;
 
