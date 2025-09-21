@@ -50,7 +50,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       case 1:
         return (
           <div>
-            <S.Label>Step 1: Query Source</S.Label>
+            {/* Step 1: 쿼리를 어떻게 가져올지 선택하는 단계 */}
+            <S.Label>Step 1: Select a query source</S.Label>
             <S.Grid>
               <S.OptionBox isSelected={querySource === 'manual'}>
                 <S.RadioWrapper>
@@ -61,7 +62,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     checked={querySource === 'manual'}
                     onChange={() => setQuerySource('manual')}
                   />
-                  <span>Manual Query Input</span>
+                  <span>Upload a user custom query</span>
                 </S.RadioWrapper>
               </S.OptionBox>
               <S.OptionBox isSelected={querySource === 'llm'}>
@@ -84,7 +85,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <>
             {querySource === 'manual' && (
               <div>
-                <S.Label>Step 2: Upload Manual Queries</S.Label>
+                {/* Step 2-1: 직접 작성한 쿼리 파일을 업로드하는 단계 */}
+                <S.Label>Step 2: Uploading a query file</S.Label>
                 <S.Dropzone
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleFileDrop}
@@ -109,6 +111,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             )}
             {querySource === 'llm' && (
               <div>
+                {/* Step 2-2: LLM을 사용하여 쿼리를 생성하는 옵션을 선택하는 단계 */}
                 <S.Label>Step 2: LLM Generation Options</S.Label>
                   <S.SubOptionsContainer>
                     <S.RadioWrapper as="label">
@@ -120,7 +123,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         onChange={() => setLlmOption('existing')}
                         disabled={querySource !== 'llm'}
                       />
-                      <span>Use existing queries</span>
+                      <span>Use Previously Generated Queries</span>
                     </S.RadioWrapper>
                     {llmOption === 'existing' && (
                       <S.Select id="existing-query-select" disabled={querySource !== 'llm'}>
@@ -155,6 +158,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       case 3:
         return (
           <div>
+            {/* Step 3: 최종 설정 확인 및 평가 실행 단계 */}
             <S.Label>Step 3: Confirm & Run</S.Label>
             <S.OptionBox isSelected={true} style={{ cursor: 'default' }}>
               <p><strong>Query Source:</strong> {querySource}</p>
