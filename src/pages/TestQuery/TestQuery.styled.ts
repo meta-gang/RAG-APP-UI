@@ -7,8 +7,9 @@ export const PageLayout = styled.div`
   gap: 1.5rem;
 
   @media (min-width: 1024px) {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: auto 1fr auto;
+    /* [수정] 데스크탑 화면에서 그리드 레이아웃을 재정의합니다. */
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: auto auto auto; /* 3개의 행을 정의합니다. */
   }
 `;
 
@@ -19,50 +20,55 @@ export const Panel = styled.div`
   border: 1px solid #374151;
   display: flex;
   flex-direction: column;
-  // ✨ [추가] 패널 내부의 콘텐츠가 패널 크기를 넘지 못하도록 강제합니다.
   overflow: hidden;
 `;
 
+// [수정] FlowPanel: 그래프 시각화를 위해 높이를 지정하고 그리드 위치를 조정합니다.
 export const FlowPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / 2;
+    grid-column: 1 / 4; /* 1-3번째 열 */
     grid-row: 1 / 2;
+    height: 600px;
   }
 `;
-
-export const ResultPanel = styled(Panel)`
-  @media (min-width: 1024px) {
-    grid-column: 2 / 3;
-    grid-row: 1 / 2;
-  }
-`;
-
+// [수정] LiveScorePanel: 그리드 위치를 조정합니다.
 export const LiveScorePanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / 3;
-    grid-row: 2 / 3;
+    grid-column: 1 / 4; /* 2-3번째 열 */
+    grid-row: 2 / 5; /* 2번째 행 */
   }
 `;
 
+// [수정] ResultPanel: 그리드 위치를 조정합니다.
+export const ResultPanel = styled(Panel)`
+  @media (min-width: 1024px) {
+    grid-column: 4 / 6; /* 1-3번째 열 */
+    grid-row: 2 / 5;
+  }
+`;
+
+// [수정] ChatPanel: 그리드 위치를 조정합니다.
 export const ChatPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 3 / 4;
-    grid-row: 1 / 3;
-    height: 100%;
+    grid-column: 4 / 6; /* 4-5번째 열 */
+    grid-row: 1 / 2;
+    height: 600px;
   }
 `;
-
+// [수정] MetricsPanel: 그리드 위치를 조정합니다.
 export const MetricsPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / 4;
-    grid-row: 3 / 4;
+    grid-column: 1 / -1; /* 모든 열 */
+    grid-row: 6 / 7;
   }
 `;
 
-// ... 이하 모든 스타일은 이전과 동일합니다 ...
+// ... 이하 스타일은 기존과 동일합니다 ...
 export const ModuleSection = styled.div`
   margin-bottom: 2rem;
-  &:last-child { margin-bottom: 0; }
+  &:last-child {
+    margin-bottom: 0;
+  }
 `;
 
 export const ModuleTitle = styled.h3`
@@ -107,7 +113,7 @@ export const Title = styled.h2`
   font-weight: 600;
   color: #ffffff;
   margin-bottom: 1rem;
-  flex-shrink: 0; 
+  flex-shrink: 0;
 `;
 
 export const FlowList = styled.div`
@@ -125,15 +131,23 @@ export const FlowItem = styled.div<{ isActive: boolean; isCompleted: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  border-color: ${props => props.isActive ? '#22d3ee' : (props.isCompleted ? '#34d399' : '#4b5563')};
-  background-color: ${props => props.isActive ? 'rgba(34, 211, 238, 0.15)' : (props.isCompleted ? 'rgba(52, 211, 153, 0.1)' : '#374151')};
-  span { font-weight: 600; color: #ffffff; }
+  border-color: ${(props) => (props.isActive ? '#22d3ee' : props.isCompleted ? '#34d399' : '#4b5563')};
+  background-color: ${(props) =>
+    props.isActive ? 'rgba(34, 211, 238, 0.15)' : props.isCompleted ? 'rgba(52, 211, 153, 0.1)' : '#374151'};
+  span {
+    font-weight: 600;
+    color: #ffffff;
+  }
 `;
 
 export const Spinner = styled.div`
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
   border: 2px solid #4b5563;
   border-top: 2px solid #22d3ee;
@@ -181,15 +195,15 @@ interface MessageWrapperProps {
 
 export const MessageWrapper = styled.div<MessageWrapperProps>`
   display: flex;
-  justify-content: ${props => props.sender === 'user' ? 'flex-end' : 'flex-start'};
+  justify-content: ${(props) => (props.sender === 'user' ? 'flex-end' : 'flex-start')};
 `;
 
 export const MessageBubble = styled.div<MessageWrapperProps>`
   max-width: 80%;
   padding: 0.75rem;
   border-radius: 0.5rem;
-  background-color: ${props => props.sender === 'user' ? '#4f46e5' : '#374151'};
-  color: ${props => props.sender === 'user' ? '#ffffff' : '#e5e7eb'};
+  background-color: ${(props) => (props.sender === 'user' ? '#4f46e5' : '#374151')};
+  color: ${(props) => (props.sender === 'user' ? '#ffffff' : '#e5e7eb')};
 `;
 
 export const InputForm = styled.form`

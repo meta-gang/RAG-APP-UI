@@ -23,10 +23,11 @@ export interface LiveMetric {
 }
 
 interface TestQueryState {
-  messages: { sender: "user" | "bot"; text: string }[];
-  metrics: { moduleName: string; metrics: { name: string, score: number }[] }[];
+  messages: { sender: 'user' | 'bot'; text: string }[];
+  metrics: { moduleName: string; metrics: { name: string; score: number }[] }[];
   moduleStatuses: Record<string, ModuleStatus>;
-  liveMetricsHistory: LiveMetric[]; // 차트 데이터 기록을 위한 배열 추가
+  liveMetricsHistory: LiveMetric[]; // 차트 데이터 기록을 위한 배열
+  activeConnections: [string, string][]; // [추가] 그래프의 활성화된 연결을 추적
 }
 
 const defaultTestQueryState: TestQueryState = {
@@ -34,6 +35,7 @@ const defaultTestQueryState: TestQueryState = {
   metrics: [],
   moduleStatuses: {},
   liveMetricsHistory: [],
+  activeConnections: [], // [추가] 기본값 설정
 };
 
 export const testQueryState = atom<TestQueryState>({

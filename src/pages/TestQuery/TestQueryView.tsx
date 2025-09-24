@@ -1,43 +1,105 @@
 // /src/pages/TestQuery/TestQueryView.tsx
 import React, { useRef, useEffect } from 'react';
 import * as S from './TestQuery.styled';
-import { LineChart, Line, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  LineChart,
+  Line,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { evaluationRuns } from '../../data/mockData';
 import { CHART_COLORS } from '../../globals/styles/color';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Accordion } from '../../components/Accordion';
 import { LiveMetric } from '../../globals/recoil/atoms';
+// [추가] reactflow 관련 라이브러리 import
+import ReactFlow, { Controls, Background, MarkerType, Handle, Position } from 'reactflow';
+import 'reactflow/dist/style.css'; // reactflow 스타일 import
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-        const queryData = payload[0].payload;
-        return (
-            <div style={{ backgroundColor: '#1f2937', border: '1px solid #374151', padding: '10px', borderRadius: '5px' }}>
-                <p style={{ color: '#9ca3af' }}>{`Query ${label}: "${queryData.query}"`}</p>
-                {payload.map((pld: any) => (
-                    <p key={pld.dataKey} style={{ color: pld.color }}>
-                        {`${pld.dataKey}: ${pld.value.toFixed(1)}`}
-                    </p>
-                ))}
-            </div>
-        );
-    }
-    return null;
+// [추가] 그래프의 커스텀 노드 컴포넌트
+const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
+  return (
+    <div
+      style={{
+        padding: '1rem 1.5rem',
+        borderRadius: '8px',
+        background:
+          data.status === 'loading'
+            ? 'rgba(79, 70, 229, 0.3)' // Indigo
+            : data.status === 'completed'
+              ? 'rgba(52, 211, 153, 0.2)' // Green
+              : '#374151', // Gray
+        border: '1px solid #4b5563',
+        color: '#E5E7EB',
+        minWidth: '250px',
+        textAlign: 'center',
+        fontSize: '1rem',
+        fontWeight: 600,
+        transition: 'all 0.3s ease',
+      }}
+    >
+      <Handle type="target" position={Position.Top} style={{ background: '#4b5563' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {data.status === 'loading' && <S.Spinner />}
+        {data.status === 'completed' && <CheckCircle2 size={18} color="#34d399" />}
+        {data.status === 'pending' && <div style={{ width: '18px' }} />}
+        <span>{data.label}</span>
+      </div>
+      <Handle type="source" position={Position.Bottom} style={{ background: '#4b5563' }} />
+    </div>
+  );
 };
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const queryData = payload[0].payload;
+    return (
+      <div style={{ backgroundColor: '#1f2937', border: '1px solid #374151', padding: '10px', borderRadius: '5px' }}>
+        <p style={{ color: '#9ca3af' }}>{`Query ${label}: "${queryData.query}"`}</p>
+        {payload.map((pld: any) => (
+          <p key={pld.dataKey} style={{ color: pld.color }}>
+            {`${pld.dataKey}: ${pld.value.toFixed(1)}`}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+// [수정] Props 인터페이스에 그래프 관련 타입 추가
 interface TestQueryViewProps {
   pipeline: string[];
+  pipelineSet: string[];
+  modulePairs: [string, string][];
   moduleStatuses: Record<string, 'pending' | 'loading' | 'completed'>;
-  messages: { sender: "user" | "bot"; text: string }[];
-  metrics: { moduleName: string; metrics: {name: string, score: number}[] }[];
+  activeConnections: [string, string][];
+  modulePositions: Record<string, { x: number; y: number }>;
+  messages: { sender: 'user' | 'bot'; text: string }[];
+  metrics: { moduleName: string; metrics: { name: string; score: number }[] }[];
   liveMetricsHistory: LiveMetric[];
   handleSendMessage: (e: React.FormEvent<HTMLFormElement>) => void;
   handleReset: () => void;
 }
 
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
-  pipeline, moduleStatuses, messages, handleSendMessage,
-  metrics, liveMetricsHistory, handleReset
+  pipeline,
+  pipelineSet,
+  modulePairs,
+  modulePositions,
+  moduleStatuses,
+  activeConnections,
+  messages,
+  handleSendMessage,
+  metrics,
+  liveMetricsHistory,
+  handleReset,
 }) => {
   const messageAreaRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -47,33 +109,35 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   }, [messages]);
 
   const latestData = evaluationRuns[evaluationRuns.length - 1];
-  const moduleMetrics = latestData?.modules.map(module => {
-    const metricDistribution: Record<string, number[]> = {};
-    module.queries.forEach(query => {
-      query.metrics.forEach(metric => {
-        if (!metricDistribution[metric.name]) {
-          metricDistribution[metric.name] = [];
-        }
-        metricDistribution[metric.name].push(metric.score);
-      });
-    });
-    const metricData = Object.entries(metricDistribution).map(([name, scores]) => {
-      const ranges = Array.from({ length: 10 }, (_, i) => ({ range: `${i * 10}-${(i + 1) * 10}`, count: 0 }));
-      scores.forEach(score => {
-        const idx = Math.min(Math.floor(score * 10), 9);
-        ranges[idx].count++;
-      });
-      return { name, distribution: ranges };
-    });
-    return { moduleName: module.moduleName, metrics: metricData };
-  }) || [];
-  const availableMetrics = (liveMetricsHistory || []).reduce((acc, curr) => {
-      Object.keys(curr).forEach(key => {
-          if (key !== 'query' && key !== 'queryNumber' && !acc.includes(key)) {
-              acc.push(key);
+  const moduleMetrics =
+    latestData?.modules.map((module) => {
+      const metricDistribution: Record<string, number[]> = {};
+      module.queries.forEach((query) => {
+        query.metrics.forEach((metric) => {
+          if (!metricDistribution[metric.name]) {
+            metricDistribution[metric.name] = [];
           }
+          metricDistribution[metric.name].push(metric.score);
+        });
       });
-      return acc;
+      const metricData = Object.entries(metricDistribution).map(([name, scores]) => {
+        const ranges = Array.from({ length: 10 }, (_, i) => ({ range: `${i * 10}-${(i + 1) * 10}`, count: 0 }));
+        scores.forEach((score) => {
+          const idx = Math.min(Math.floor(score * 10), 9);
+          ranges[idx].count++;
+        });
+        return { name, distribution: ranges };
+      });
+      return { moduleName: module.moduleName, metrics: metricData };
+    }) || [];
+
+  const availableMetrics = (liveMetricsHistory || []).reduce((acc, curr) => {
+    Object.keys(curr).forEach((key) => {
+      if (key !== 'query' && key !== 'queryNumber' && !acc.includes(key)) {
+        acc.push(key);
+      }
+    });
+    return acc;
   }, [] as string[]);
 
   return (
@@ -81,32 +145,60 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       <S.FlowPanel>
         <S.TestQueryHeader>
           <S.Title>Processing Flow</S.Title>
-          <S.ResetButton onClick={handleReset} title="Reset Test"><RefreshCw size={14} /></S.ResetButton>
+          <S.ResetButton onClick={handleReset} title="Reset Test">
+            <RefreshCw size={14} />
+          </S.ResetButton>
         </S.TestQueryHeader>
-        <S.FlowList>
-          {(pipeline || []).map((module, index) => {
-            const status = moduleStatuses[module] || 'pending';
-            return (
-              <S.FlowItem key={module} isActive={status === 'loading'} isCompleted={status === 'completed'}>
-                {status === 'loading' && <S.Spinner />}
-                {status === 'completed' && <CheckCircle2 size={18} color="#34d399" />}
-                {status === 'pending' && <div style={{ width: '18px', height: '18px' }} />}
-                <span>{index + 1}. {module}</span>
-              </S.FlowItem>
-            );
-          })}
-        </S.FlowList>
+        {/* [수정] FlowList를 ReactFlow 컴포넌트로 교체 */}
+        <ReactFlow
+          proOptions={{ hideAttribution: true }}
+          nodes={pipelineSet.map((module) => ({
+            id: module,
+            type: 'moduleNode',
+            position: modulePositions[module] || { x: 0, y: 0 },
+            data: {
+              label: module,
+              status: moduleStatuses[module] || 'pending',
+            },
+            draggable: false,
+          }))}
+          edges={modulePairs.map(([source, target]) => ({
+            id: `${source}-${target}`,
+            source,
+            target,
+            type: 'smoothstep',
+            animated: activeConnections.some(([s, t]) => s === source && t === target),
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#9ca3af' },
+            style: { stroke: '#9ca3af', strokeWidth: 2 },
+          }))}
+          nodeTypes={{ moduleNode: ModuleNode }}
+          fitView
+        >
+          <Background />
+          <Controls showInteractive={false} />
+        </ReactFlow>
       </S.FlowPanel>
 
       <S.ResultPanel>
         <S.Title>Evaluation Result</S.Title>
-        <div style={{overflowY: 'auto'}}>
-          {(metrics || []).length === 0 && <div style={{color: '#9ca3af', textAlign: 'center', marginTop: '40%'}}>Live test results will appear here.</div>}
+        <div style={{ overflowY: 'auto' }}>
+          {(metrics || []).length === 0 && (
+            <div style={{ color: '#9ca3af', textAlign: 'center', marginTop: '20%' }}>
+              Live test results will appear here.
+            </div>
+          )}
           {(metrics || []).map((moduleData) => {
-            const avgScore = (moduleData.metrics || []).length > 0 ? ((moduleData.metrics || []).reduce((sum, m) => sum + m.score, 0) / (moduleData.metrics || []).length * 100).toFixed(1) : 'N/A';
+            const avgScore =
+              (moduleData.metrics || []).length > 0
+                ? (
+                    ((moduleData.metrics || []).reduce((sum, m) => sum + m.score, 0) /
+                      (moduleData.metrics || []).length) *
+                    100
+                  ).toFixed(1)
+                : 'N/A';
             const accordionTitle = (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
-                <span style={{color: '#FFFFFF' }}>{moduleData.moduleName}</span>
+                <span style={{ color: '#FFFFFF' }}>{moduleData.moduleName}</span>
                 <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>Avg: {avgScore}%</span>
               </div>
             );
@@ -127,7 +219,9 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       <S.ChatPanel>
         <S.Title>Live Test</S.Title>
         <S.MessageArea ref={messageAreaRef}>
-          {(messages || []).length === 0 && <div style={{textAlign: 'center', color: '#9ca3af', margin: 'auto'}}>Send a query to start the test.</div>}
+          {(messages || []).length === 0 && (
+            <div style={{ textAlign: 'center', color: '#9ca3af', margin: 'auto' }}>Send a query to start the test.</div>
+          )}
           {(messages || []).map((msg, i) => (
             <S.MessageWrapper key={i} sender={msg.sender}>
               <S.MessageBubble sender={msg.sender}>{msg.text}</S.MessageBubble>
@@ -139,53 +233,69 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
           <S.SendButton type="submit">Send</S.SendButton>
         </S.InputForm>
       </S.ChatPanel>
-      
+
       <S.LiveScorePanel>
-          <S.Title>Live Test Score Trend</S.Title>
-          {(liveMetricsHistory || []).length > 0 ? (
-          // ✨ [수정] 차트 높이를 300px에서 260px로 소폭 줄여 페이지 전체의 세로 길이를 최적화합니다.
+        <S.Title>Live Test Score Trend</S.Title>
+        {(liveMetricsHistory || []).length > 0 ? (
           <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={liveMetricsHistory} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="queryNumber" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3af" domain={[0, 100]} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  {availableMetrics.map((metricName, index) => (
-                      <Line key={metricName} type="monotone" dataKey={metricName} stroke={CHART_COLORS[index % CHART_COLORS.length]} strokeWidth={2} activeDot={{ r: 8 }}/>
-                  ))}
-              </LineChart>
+            <LineChart data={liveMetricsHistory} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+              <XAxis dataKey="queryNumber" stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3af" domain={[0, 100]} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              {availableMetrics.map((metricName, index) => (
+                <Line
+                  key={metricName}
+                  type="monotone"
+                  dataKey={metricName}
+                  stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                  strokeWidth={2}
+                  activeDot={{ r: 8 }}
+                />
+              ))}
+            </LineChart>
           </ResponsiveContainer>
-          ) : (
-          <div style={{color: '#9ca3af', textAlign: 'center', margin: 'auto'}}>Live test score trends will be charted here.</div>
-          )}
+        ) : (
+          <div style={{ color: '#9ca3af', textAlign: 'center', margin: 'auto' }}>
+            Live test score trends will be charted here.
+          </div>
+        )}
       </S.LiveScorePanel>
 
       <S.MetricsPanel>
-          <S.Title>Latest Metrics Overview</S.Title>
-          <S.ScrollableContent>
+        <S.Title>Latest Metrics Overview</S.Title>
+        <S.ScrollableContent>
           {moduleMetrics.map((moduleData) => (
-              <S.ModuleSection key={moduleData.moduleName}>
+            <S.ModuleSection key={moduleData.moduleName}>
               <S.ModuleTitle>{moduleData.moduleName}</S.ModuleTitle>
               <S.MetricsGrid>
-                  {moduleData.metrics.map((metric) => (
+                {moduleData.metrics.map((metric) => (
                   <S.MetricBox key={`${moduleData.moduleName}-${metric.name}`}>
-                      <S.MetricTitle>{metric.name}</S.MetricTitle>
-                      <ResponsiveContainer width="100%" height={100}>
+                    <S.MetricTitle>{metric.name}</S.MetricTitle>
+                    <ResponsiveContainer width="100%" height={100}>
                       <BarChart data={metric.distribution}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                          <XAxis dataKey="range" stroke="#9CA3AF" fontSize={10} interval={1} angle={-30} textAnchor="end" height={40} />
-                          <YAxis stroke="#9CA3AF" allowDecimals={false} fontSize={10} />
-                          <Tooltip contentStyle={{ backgroundColor: "#1F2937", borderColor: "#4B5563", fontSize: 12 }} />
-                          <Bar dataKey="count" fill={CHART_COLORS[2]} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis
+                          dataKey="range"
+                          stroke="#9CA3AF"
+                          fontSize={10}
+                          interval={1}
+                          angle={-30}
+                          textAnchor="end"
+                          height={40}
+                        />
+                        <YAxis stroke="#9CA3AF" allowDecimals={false} fontSize={10} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1F2937', borderColor: '#4B5563', fontSize: 12 }} />
+                        <Bar dataKey="count" fill={CHART_COLORS[2]} />
                       </BarChart>
-                      </ResponsiveContainer>
+                    </ResponsiveContainer>
                   </S.MetricBox>
-                  ))}
+                ))}
               </S.MetricsGrid>
-              </S.ModuleSection>
+            </S.ModuleSection>
           ))}
-          </S.ScrollableContent>
+        </S.ScrollableContent>
       </S.MetricsPanel>
     </S.PageLayout>
   );
