@@ -4,6 +4,7 @@ import { useRecoilState } from 'recoil';
 import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { chatEvaluationRun } from '../../data/mockUserData';
+import { socket } from '../../apis/socket';
 
 type ModuleStatus = 'pending' | 'loading' | 'completed';
 
@@ -132,6 +133,74 @@ export const TestQueryPage: React.FC = () => {
     }
   }, []);
 
+  // websocket 연결 위해 추가한 부분
+  useEffect(() => {
+    // WebSocket 연결
+    socket.connect();
+    
+    // 토픽 구독
+    socket.subscribe(['rag-container', 'rag-result-data', 'module-statu', 'error']);
+    
+    // 모듈 상태 변경 핸들러
+    const handleModuleStatus = (data: any) => {
+        if (data.moduleName && data.status) {
+        setTqState(prev => ({
+            ...prev,
+            moduleStatuses: {
+            ...prev.moduleStatuses,
+            [data.moduleName]: data.status
+            }
+        }));
+
+        if (data.activeConnections) {
+            setTqState(prev => ({
+            ...prev,
+            activeConnections: data.activeConnections
+            }));
+        }
+        }
+    };
+
+    // RAG 결과 데이터 핸들러
+    const handleRagResult = (data: any) => {
+        if (data.message) {
+        setTqState(prev => ({
+            ...prev,
+            messages: [...prev.messages, { sender: 'bot', text: data.message }]
+        }));
+        }
+        if (data.metrics) {
+        setTqState(prev => ({
+            ...prev,
+            metrics: [...prev.metrics, ...data.metrics]
+        }));
+        }
+    };
+
+    // 에러 핸들러
+    const handleError = (data: any) => {
+        console.error('WebSocket error:', data);
+        setTqState(prev => ({
+        ...prev,
+        messages: [...prev.messages, { sender: 'bot', text: `Error: ${data.message}` }]
+        }));
+    };
+
+    // 핸들러 등록
+    socket.on('module-statu', handleModuleStatus);
+    socket.on('rag-result-data', handleRagResult);
+    socket.on('error', handleError);
+
+    // 컴포넌트 언마운트 시 정리
+    return () => {
+        socket.off('module-statu', handleModuleStatus);
+        socket.off('rag-result-data', handleRagResult);
+        socket.off('error', handleError);
+        socket.unsubscribe(['rag-container', 'rag-result-data', 'module-statu', 'error']);
+        socket.disconnect();
+    };
+    }, [setTqState]);
+
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const input = e.currentTarget.queryInput as HTMLInputElement;
@@ -145,68 +214,74 @@ export const TestQueryPage: React.FC = () => {
       moduleStatuses: initialStatuses,
       activeConnections: [], // [수정] activeConnections 초기화
     }));
+
+    // WebSocket으로 쿼리 전송
+    socket.send({
+        topic: 'test-query',
+        query: query
+    });
     input.value = '';
 
-    let answer = '';
-    let foundAnswer = false;
-    const metricsData: { moduleName: string; metrics: { name: string; score: number }[] }[] = [];
-    for (const run of chatEvaluationRun) {
-      for (const module of run.modules) {
-        const found = module.queries.find((q) => q.query === query);
-        if (found) {
-          if (!foundAnswer) {
-            answer = found.answer;
-            foundAnswer = true;
-          }
-          metricsData.push({ moduleName: module.moduleName, metrics: found.metrics });
-        }
-      }
-    }
-    if (!answer) {
-      answer = `There is no answer for "${query}".`;
-    }
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i > 0) {
-        setTqState((prev) => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i - 1]]: 'completed' } }));
-      }
-      if (i < pipeline.length) {
-        // [추가] 현재 실행 중인 연결을 찾아 activeConnections 상태에 저장
-        const currentModule = pipeline[i];
-        const childConnections = modulePairs.filter(([from, _]) => from === currentModule);
+    // let answer = '';
+    // let foundAnswer = false;
+    // const metricsData: { moduleName: string; metrics: { name: string; score: number }[] }[] = [];
+    // for (const run of chatEvaluationRun) {
+    //   for (const module of run.modules) {
+    //     const found = module.queries.find((q) => q.query === query);
+    //     if (found) {
+    //       if (!foundAnswer) {
+    //         answer = found.answer;
+    //         foundAnswer = true;
+    //       }
+    //       metricsData.push({ moduleName: module.moduleName, metrics: found.metrics });
+    //     }
+    //   }
+    // }
+    // if (!answer) {
+    //   answer = `There is no answer for "${query}".`;
+    // }
+    // let i = 0;
+    // const interval = setInterval(() => {
+    //   if (i > 0) {
+    //     setTqState((prev) => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i - 1]]: 'completed' } }));
+    //   }
+    //   if (i < pipeline.length) {
+    //     // [추가] 현재 실행 중인 연결을 찾아 activeConnections 상태에 저장
+    //     const currentModule = pipeline[i];
+    //     const childConnections = modulePairs.filter(([from, _]) => from === currentModule);
 
-        setTqState((prev) => ({
-          ...prev,
-          moduleStatuses: { ...prev.moduleStatuses, [pipeline[i]]: 'loading' },
-          activeConnections: childConnections,
-        }));
-        i++;
-      } else {
-        clearInterval(interval);
-        setTqState((prev) => {
-          const newLiveMetricData = metricsData.reduce(
-            (acc, moduleData) => {
-              moduleData.metrics.forEach((metric) => {
-                acc[metric.name] = metric.score * 100;
-              });
-              return acc;
-            },
-            {} as Record<string, number>,
-          );
-          return {
-            ...prev,
-            moduleStatuses: { ...prev.moduleStatuses, [pipeline[pipeline.length - 1]]: 'completed' },
-            messages: [...prev.messages, { sender: 'bot', text: answer }],
-            metrics: metricsData,
-            liveMetricsHistory: [
-              ...prev.liveMetricsHistory,
-              { query: query, queryNumber: prev.liveMetricsHistory.length + 1, ...newLiveMetricData },
-            ],
-            activeConnections: [], // [추가] 실행 완료 후 연결 비활성화
-          };
-        });
-      }
-    }, 700);
+    //     setTqState((prev) => ({
+    //       ...prev,
+    //       moduleStatuses: { ...prev.moduleStatuses, [pipeline[i]]: 'loading' },
+    //       activeConnections: childConnections,
+    //     }));
+    //     i++;
+    //   } else {
+    //     clearInterval(interval);
+    //     setTqState((prev) => {
+    //       const newLiveMetricData = metricsData.reduce(
+    //         (acc, moduleData) => {
+    //           moduleData.metrics.forEach((metric) => {
+    //             acc[metric.name] = metric.score * 100;
+    //           });
+    //           return acc;
+    //         },
+    //         {} as Record<string, number>,
+    //       );
+    //       return {
+    //         ...prev,
+    //         moduleStatuses: { ...prev.moduleStatuses, [pipeline[pipeline.length - 1]]: 'completed' },
+    //         messages: [...prev.messages, { sender: 'bot', text: answer }],
+    //         metrics: metricsData,
+    //         liveMetricsHistory: [
+    //           ...prev.liveMetricsHistory,
+    //           { query: query, queryNumber: prev.liveMetricsHistory.length + 1, ...newLiveMetricData },
+    //         ],
+    //         activeConnections: [], // [추가] 실행 완료 후 연결 비활성화
+    //       };
+    //     });
+    //   }
+    // }, 700);
   };
 
   const handleReset = () => {
@@ -219,6 +294,24 @@ export const TestQueryPage: React.FC = () => {
     });
   };
 
+  const handleFileUpload = (files: string[]) => {
+        socket.send({
+            topic: 'run-rag-file-query',
+            files: files
+        });
+    };
+
+    const handleLLMQuery = (settings: {
+        llm_option: 'make-query' | 'made-query',
+        llm_model: string,
+        query_id: string
+    }) => {
+        socket.send({
+            topic: 'run-rag-llm-query',
+            settings: settings
+        });
+    };
+
   return (
     <TestQueryView
       // [수정] View에 새로운 props 전달
@@ -230,6 +323,8 @@ export const TestQueryPage: React.FC = () => {
       moduleStatuses={tqState.moduleStatuses}
       messages={tqState.messages}
       handleSendMessage={handleSendMessage}
+      handleFileUpload={handleFileUpload}
+      handleLLMQuery={handleLLMQuery} 
       metrics={tqState.metrics}
       liveMetricsHistory={tqState.liveMetricsHistory}
       handleReset={handleReset}

@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { existingQueries } from '../../data/mockData';
 import { SettingsView } from './SettingsView';
+import { socket } from '../../apis/socket';
 
 interface SettingsPageProps {
     setCurrentPage: (page: string) => void;
@@ -21,6 +22,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
     const [progress, setProgress] = useState(0);
     const [progressMessage, setProgressMessage] = useState('');
     
+    const uploadFiles = async (files: File[]) => {
+        const formData = new FormData();
+        files.forEach(file => formData.append('files', file));
+        
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            return result.fileNames;
+        } catch (error) {
+            console.error('File upload failed:', error);
+            return null;
+        }
+    };
+
     // Step 2: 다음 단계로 넘어가는 핸들러 함수
     const handleNextStep = () => {
         // 마지막 단계에서는 실행 로직으로 연결
@@ -58,18 +76,36 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
         }
     };
     
-    const handleRun = () => {
+    const handleRun = async () => {
         setIsRunning(true);
         setProgress(0);
         setProgressMessage('Initializing...');
 
-        console.log("Running RAG evaluation with settings:", {
-            querySource,
-            llmOption,
-            files
-        });
+        if (querySource === 'manual' && files.length > 0) {
+            // 파일 업로드 케이스
+            const uploadedFiles = await uploadFiles(files);
+            if (uploadedFiles) {
+                socket.send({
+                    topic: 'run-rag-file-query',
+                    files: uploadedFiles
+                });
+            }
+        } else if (querySource === 'llm') {
+            // LLM 쿼리 생성 케이스
+            const llmModel = document.getElementById('llm-select') as HTMLSelectElement;
+            socket.send({
+                topic: 'run-rag-llm-query',
+                settings: {
+                    llm_option: llmOption === 'new' ? 'make-query' : 'made-query',
+                    llm_model: llmModel?.value || 'Gemini-Pro (Google)',
+                    query_id: llmOption === 'existing' ? 
+                        (document.getElementById('existing-query-select') as HTMLSelectElement)?.value 
+                        : undefined
+                }
+            });
+        }
 
-        // 진행률 시뮬레이션
+        // 프로그레스 바 시뮬레이션
         const interval = setInterval(() => {
             setProgress(prev => {
                 const nextProgress = prev + 10;
@@ -78,7 +114,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
                     setProgressMessage('Evaluation complete! Redirecting...');
                     setTimeout(() => {
                         setCurrentPage("dashboard");
-                        setIsRunning(false); // 페이지 이동 후 상태 초기화
+                        setIsRunning(false);
                     }, 1000);
                     return 100;
                 }
@@ -88,7 +124,37 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
 
                 return nextProgress;
             });
-        }, 300); // 0.3초마다 진행률 업데이트
+        }, 300);
+        // setIsRunning(true);
+        // setProgress(0);
+        // setProgressMessage('Initializing...');
+
+        // console.log("Running RAG evaluation with settings:", {
+        //     querySource,
+        //     llmOption,
+        //     files
+        // });
+
+        // // 진행률 시뮬레이션
+        // const interval = setInterval(() => {
+        //     setProgress(prev => {
+        //         const nextProgress = prev + 10;
+        //         if (nextProgress >= 100) {
+        //             clearInterval(interval);
+        //             setProgressMessage('Evaluation complete! Redirecting...');
+        //             setTimeout(() => {
+        //                 setCurrentPage("dashboard");
+        //                 setIsRunning(false); // 페이지 이동 후 상태 초기화
+        //             }, 1000);
+        //             return 100;
+        //         }
+                
+        //         if (nextProgress > 70) setProgressMessage('Finalizing results...');
+        //         else if (nextProgress > 30) setProgressMessage('Generating answers...');
+
+        //         return nextProgress;
+        //     });
+        // }, 300); // 0.3초마다 진행률 업데이트
     };
 
     return (
