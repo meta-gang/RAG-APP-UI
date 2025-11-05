@@ -1,5 +1,3 @@
-import { atom } from 'recoil';
-
 class SocketClient {
   private ws: WebSocket | null = null;
   private url: string;
@@ -64,6 +62,31 @@ class SocketClient {
 
   unsubscribe(topics: string[]) {
     this.send({ topic: 'unsubscribe', topics });
+  }
+
+  sendTestQuery(query: string) {
+    this.send({
+      topic: 'test-query',
+      query: query
+    });
+  }
+
+  sendFileQuery(files: string[]) {
+    this.send({
+      topic: 'run-rag-file-query',
+      files: files
+    });
+  }
+
+  sendLLMQuery(settings: {
+    llm_option: 'make-query' | 'made-query',
+    llm_model: string,
+    query_id: string
+  }) {
+    this.send({
+      topic: 'run-rag-llm-query',
+      settings: settings
+    });
   }
 
   disconnect() {
