@@ -80,8 +80,8 @@ class SocketClient {
 
   sendLLMQuery(settings: {
     llm_option: 'make-query' | 'made-query',
-    llm_model: string,
-    query_id: string
+    file_path: string,
+    llm_model: string
   }) {
     this.send({
       topic: 'run-rag-llm-query',

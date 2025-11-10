@@ -221,67 +221,6 @@ export const TestQueryPage: React.FC = () => {
         query: query
     });
     input.value = '';
-
-    // let answer = '';
-    // let foundAnswer = false;
-    // const metricsData: { moduleName: string; metrics: { name: string; score: number }[] }[] = [];
-    // for (const run of chatEvaluationRun) {
-    //   for (const module of run.modules) {
-    //     const found = module.queries.find((q) => q.query === query);
-    //     if (found) {
-    //       if (!foundAnswer) {
-    //         answer = found.answer;
-    //         foundAnswer = true;
-    //       }
-    //       metricsData.push({ moduleName: module.moduleName, metrics: found.metrics });
-    //     }
-    //   }
-    // }
-    // if (!answer) {
-    //   answer = `There is no answer for "${query}".`;
-    // }
-    // let i = 0;
-    // const interval = setInterval(() => {
-    //   if (i > 0) {
-    //     setTqState((prev) => ({ ...prev, moduleStatuses: { ...prev.moduleStatuses, [pipeline[i - 1]]: 'completed' } }));
-    //   }
-    //   if (i < pipeline.length) {
-    //     // [추가] 현재 실행 중인 연결을 찾아 activeConnections 상태에 저장
-    //     const currentModule = pipeline[i];
-    //     const childConnections = modulePairs.filter(([from, _]) => from === currentModule);
-
-    //     setTqState((prev) => ({
-    //       ...prev,
-    //       moduleStatuses: { ...prev.moduleStatuses, [pipeline[i]]: 'loading' },
-    //       activeConnections: childConnections,
-    //     }));
-    //     i++;
-    //   } else {
-    //     clearInterval(interval);
-    //     setTqState((prev) => {
-    //       const newLiveMetricData = metricsData.reduce(
-    //         (acc, moduleData) => {
-    //           moduleData.metrics.forEach((metric) => {
-    //             acc[metric.name] = metric.score * 100;
-    //           });
-    //           return acc;
-    //         },
-    //         {} as Record<string, number>,
-    //       );
-    //       return {
-    //         ...prev,
-    //         moduleStatuses: { ...prev.moduleStatuses, [pipeline[pipeline.length - 1]]: 'completed' },
-    //         messages: [...prev.messages, { sender: 'bot', text: answer }],
-    //         metrics: metricsData,
-    //         liveMetricsHistory: [
-    //           ...prev.liveMetricsHistory,
-    //           { query: query, queryNumber: prev.liveMetricsHistory.length + 1, ...newLiveMetricData },
-    //         ],
-    //         activeConnections: [], // [추가] 실행 완료 후 연결 비활성화
-    //       };
-    //     });
-    //   }
-    // }, 700);
   };
 
   const handleReset = () => {

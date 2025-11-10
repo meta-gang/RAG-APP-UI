@@ -92,22 +92,37 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
             }
         } else if (querySource === 'llm') {
             // LLM 쿼리 생성 케이스
-            const llmModel = document.getElementById('llm-select') as HTMLSelectElement;
-            socket.send({
-                topic: 'run-rag-llm-query',
-                settings: {
-                    llm_option: llmOption === 'new' ? 'make-query' : 'made-query',
-                    llm_model: llmModel?.value || 'Gemini-Pro (Google)',
-                    query_id: llmOption === 'existing' ? 
-                        (document.getElementById('existing-query-select') as HTMLSelectElement)?.value 
-                        : undefined
-                }
-            });
+            // LLM 모델 선택값과 기존 질문 선택값 가져오기
+            const selectedModel = document.getElementById('llm-select') as HTMLSelectElement;
+            const selectedQueryId = document.getElementById('existing-query-select') as HTMLSelectElement;
+            
+            if (llmOption === 'new') {
+                // 새 질문 생성의 경우
+                socket.send({
+                    topic: 'run-rag-llm-query',
+                    settings: {
+                        llm_option: 'make-query',
+                        file_path: '',  // 새 질문 생성시에는 빈 문자열
+                        llm_model: selectedModel?.value || ''  // 선택된 LLM 모델
+                    }
+                });
+            } else {
+                // 기존 질문 사용의 경우
+                const selectedQueryData = existingQueries.find(q => q.id === selectedQueryId?.value);
+                socket.send({
+                    topic: 'run-rag-llm-query',
+                    settings: {
+                        llm_option: 'made-query',
+                        file_path: selectedQueryData?.filePath || '',  // 선택된 질문의 파일 경로
+                        llm_model: selectedModel?.value || ''  // 선택된 LLM 모델
+                    }
+                });
+            }
         }
 
         // 프로그레스 바 시뮬레이션
         const interval = setInterval(() => {
-            setProgress(prev => {
+            setProgress((prev: number) => {
                 const nextProgress = prev + 10;
                 if (nextProgress >= 100) {
                     clearInterval(interval);
@@ -125,36 +140,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
                 return nextProgress;
             });
         }, 300);
-        // setIsRunning(true);
-        // setProgress(0);
-        // setProgressMessage('Initializing...');
-
-        // console.log("Running RAG evaluation with settings:", {
-        //     querySource,
-        //     llmOption,
-        //     files
-        // });
-
-        // // 진행률 시뮬레이션
-        // const interval = setInterval(() => {
-        //     setProgress(prev => {
-        //         const nextProgress = prev + 10;
-        //         if (nextProgress >= 100) {
-        //             clearInterval(interval);
-        //             setProgressMessage('Evaluation complete! Redirecting...');
-        //             setTimeout(() => {
-        //                 setCurrentPage("dashboard");
-        //                 setIsRunning(false); // 페이지 이동 후 상태 초기화
-        //             }, 1000);
-        //             return 100;
-        //         }
-                
-        //         if (nextProgress > 70) setProgressMessage('Finalizing results...');
-        //         else if (nextProgress > 30) setProgressMessage('Generating answers...');
-
-        //         return nextProgress;
-        //     });
-        // }, 300); // 0.3초마다 진행률 업데이트
     };
 
     return (
