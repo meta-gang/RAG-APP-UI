@@ -86,6 +86,12 @@ interface TestQueryViewProps {
   liveMetricsHistory: LiveMetric[];
   handleSendMessage: (e: React.FormEvent<HTMLFormElement>) => void;
   handleReset: () => void;
+  handleFileUpload: (files: string[]) => void;  // 추가
+  handleLLMQuery: (settings: {
+    llm_option: 'make-query' | 'made-query',
+    llm_model: string,
+    query_id: string
+  }) => void;
 }
 
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
@@ -100,6 +106,8 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   metrics,
   liveMetricsHistory,
   handleReset,
+  handleFileUpload,
+  handleLLMQuery
 }) => {
   const messageAreaRef = useRef<HTMLDivElement>(null);
   useEffect(() => {

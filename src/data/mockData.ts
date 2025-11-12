@@ -881,8 +881,8 @@ export const evaluationRuns: EvaluationRun[] = [
 ];
 
 export const existingQueries = [
-    "What is RAG?",
-    "Explain LLM evaluation.",
-    "How does meta-gang work?",
-    "Show dashboard stats."
+    { id: '1', query: "What is RAG?", filePath: "./data/rag_queries/what_is_rag.txt" },
+    { id: '2', query: "Explain LLM evaluation.", filePath: "./data/rag_queries/llm_eval.txt" },
+    { id: '3', query: "How does meta-gang work?", filePath: "./data/rag_queries/meta_gang.txt" },
+    { id: '4', query: "Show dashboard stats.", filePath: "./data/rag_queries/dashboard_stats.txt" }
 ];

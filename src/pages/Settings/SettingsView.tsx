@@ -13,7 +13,11 @@ interface SettingsViewProps {
   querySource: 'manual' | 'llm';
   llmOption: 'new' | 'existing';
   fileInputRef: React.RefObject<HTMLInputElement>;
-  existingQueries: string[];
+  existingQueries: Array<{
+    id: string;
+    query: string;
+    filePath: string;
+  }>;
   
   // Event Handlers
   handleNextStep: () => void;
@@ -128,7 +132,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     {llmOption === 'existing' && (
                       <S.Select id="existing-query-select" disabled={querySource !== 'llm'}>
                         {existingQueries.map((q) => (
-                          <option key={q}>{q}</option>
+                          <option key={q.id} value={q.id}>{q.query}</option>
                         ))}
                       </S.Select>
                     )}
