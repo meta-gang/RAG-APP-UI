@@ -44,3 +44,27 @@ export const testQueryState = atom<TestQueryState>({
   // 이 상태는 페이지를 떠나도 유지되지만, 브라우저를 새로고침하면 초기화됩니다.
   // 만약 새로고침 시에도 유지하고 싶다면 effects_UNSTABLE: [persistAtom]을 추가하세요.
 });
+
+// 1. 앱 전역 로딩 상태를 위한 타입 정의
+export interface AppLoadingState {
+  isLoading: boolean;
+  message: string;
+  totalQueries: number;
+  completedQueries: number;
+}
+
+// 2. 기본 상태 정의
+const defaultAppLoadingState: AppLoadingState = {
+  isLoading: false,
+  message: 'Initializing...',
+  totalQueries: 0,
+  completedQueries: 0,
+};
+
+// 3. 전역 로딩 atom 생성
+export const appLoadingState = atom<AppLoadingState>({
+  key: 'appLoadingState',
+  default: defaultAppLoadingState,
+  // 이 상태는 새로고침 시 초기화되는 것이 자연스럽습니다.
+  // persistAtom을 사용하지 않습니다.
+});
