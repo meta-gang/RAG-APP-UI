@@ -1,27 +1,41 @@
 // /src/pages/Settings/index.tsx
+// [병합 완료] - 재준님의 Recoil 연동 + 문규님의 socket 전송 로직
 
 import React, { useState, useRef } from 'react';
-import { existingQueries } from '../../data/mockData';
 import { SettingsView } from './SettingsView';
-import { socket } from '../../apis/socket';
+import { existingQueries } from '../../data/mockData';
+
+// 1. Recoil과 소켓 임포트 (문규님 코드 + 재준님 코드)
+import { useRecoilValue } from 'recoil';
+import { appLoadingState } from '../../globals/recoil/atoms';
+import { socket } from '../../apis/socket'; // 문규님의 socket 임포트
 
 interface SettingsPageProps {
     setCurrentPage: (page: string) => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) => {
-    // Step 1: 단계(step)를 관리하는 state 추가
+    // --- 페이지 단계 및 폼 데이터 관련 State (공통) ---
     const [step, setStep] = useState<number>(1);
-    
     const [files, setFiles] = useState<File[]>([]);
     const [querySource, setQuerySource] = useState<'manual' | 'llm'>("manual");
     const [llmOption, setLlmOption] = useState<'new' | 'existing'>("new");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // const [isRunning, setIsRunning] = useState(false);
-    // const [progress, setProgress] = useState(0);
-    // const [progressMessage, setProgressMessage] = useState('');
-    
+    // --- 2. 로딩 상태 로직 (재준님 코드 - Recoil 연동) ---
+    // 로컬 useState(isRunning, progress)를 제거하고, Recoil 전역 상태를 구독합니다.
+    const globalLoadingState = useRecoilValue(appLoadingState);
+
+    // SettingsView가 요구하는 props에 맞게 전역 상태를 매핑합니다.
+    const isRunning = globalLoadingState.isLoading;
+    const progress = globalLoadingState.totalQueries > 0
+        ? Math.floor((globalLoadingState.completedQueries / globalLoadingState.totalQueries) * 100)
+        : 0;
+    const progressMessage = globalLoadingState.totalQueries > 0
+        ? `${globalLoadingState.message} (${globalLoadingState.completedQueries}/${globalLoadingState.totalQueries})`
+        : globalLoadingState.message;
+
+    // --- 3. 파일 업로드 헬퍼 (문규님 코드) ---
     const uploadFiles = async (files: File[]) => {
         const formData = new FormData();
         files.forEach(file => formData.append('files', file));
@@ -39,20 +53,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
         }
     };
 
-    // Step 2: 다음 단계로 넘어가는 핸들러 함수
+    // --- 4. 핸들러 함수들 (공통) ---
     const handleNextStep = () => {
-        // 마지막 단계에서는 실행 로직으로 연결
         if (step === 3) {
             handleRun();
         } else {
-            // Manual 선택 시 2단계는 파일 업로드, 3단계가 확인. LLM 선택 시 2단계가 LLM 옵션, 3단계가 확인.
-            // 현재 로직은 1 -> 2 -> 3 순서로만 진행되므로, 2단계에서 분기할 필요는 없음.
-            // 복잡한 분기가 필요하다면 여기서 로직을 추가할 수 있음.
             setStep(prev => prev + 1);
         }
     };
 
-    // Step 3: 이전 단계로 돌아가는 핸들러 함수
     const handlePrevStep = () => {
         setStep(prev => prev - 1);
     };
@@ -76,22 +85,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
         }
     };
     
-<<<<<<< HEAD
-    const handleRun = () => {
-        // [제거] 로딩 상태를 'true'로 설정하는 코드를 제거합니다.
-        // setIsRunning(true);
-        // setProgress(0);
-        // setProgressMessage('Initializing...');
-        
-        // [유지] 문규님이 작업한 소켓 메시지 전송 로직은 그대로 둡니다.
-        // 이 메시지가 백엔드로 전송되면, 백엔드가 'rag-on' 메시지로 응답할 것입니다.
+    // --- 5. handleRun (핵심 병합) ---
+    const handleRun = async () => {
+        // [병합] 문규님의 로컬 상태(setIsRunning 등) 설정 제거
+        // [병합] 문규님의 시뮬레이션(setInterval) 로직 제거
+        // [병합] 문규님의 소켓 전송 로직 (async, socket.send 등)은 유지
+
         console.log("Running RAG evaluation with settings:", {
             querySource,
             llmOption,
             files
         });
 
-        // (문규님 코드 예시 - 실제 코드는 다를 수 있음)
         if (querySource === 'manual' && files.length > 0) {
             // 파일 업로드 케이스 (문규님 코드)
             const uploadedFiles = await uploadFiles(files);
@@ -116,7 +121,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
                 // 기존 질문 사용의 경우
                 // [정우님 명세서]에 맞게 수정 (file_path, llm_model)
                 // TODO: existingQueries 목업 데이터가 파일 경로가 아니라서 임시 경로 사용
-                const selectedQueryData = existingQueries.find(q => q === selectedQueryId?.value);
+                const selectedQueryData = existingQueries.find(q => q.id === selectedQueryId?.value);
                 const filePath = selectedQueryData ? `./data/${selectedQueryData}.txt` : './data/default.txt';
 
                 socket.sendLLMQuery({

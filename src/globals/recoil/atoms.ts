@@ -1,8 +1,9 @@
-// src/globals/recoil/atoms.ts
 import { DefaultNavInfo } from '@type/defaults';
+import { EvaluationRun } from '@type/index';
 import { NavInfo } from '@type/index';
 import { atom } from 'recoil';
 import { recoilPersist } from 'recoil-persist';
+import { evaluationRuns as mockData } from '../../data/mockData';
 
 const { persistAtom } = recoilPersist();
 
@@ -29,6 +30,8 @@ interface TestQueryState {
   liveMetricsHistory: LiveMetric[]; // 차트 데이터 기록을 위한 배열
   activeConnections: [string, string][]; // [추가] 그래프의 활성화된 연결을 추적
 }
+
+
 
 const defaultTestQueryState: TestQueryState = {
   messages: [],
@@ -65,6 +68,13 @@ const defaultAppLoadingState: AppLoadingState = {
 export const appLoadingState = atom<AppLoadingState>({
   key: 'appLoadingState',
   default: defaultAppLoadingState,
-  // 이 상태는 새로고침 시 초기화되는 것이 자연스럽습니다.
-  // persistAtom을 사용하지 않습니다.
+});
+
+// 4. Dashboard가 사용할 최종 결과 데이터 atom
+//    Settings 페이지에서 평가를 실행하면, App.tsx가 이 atom을 업데이트합니다.
+//    DashboardPage는 이 atom을 구독하여 최신 데이터를 표시합니다.
+//    기본값으로 mockData를 사용합니다.
+export const dashboardResultState = atom<EvaluationRun[]>({
+  key: 'dashboardResultState',
+  default: mockData,
 });

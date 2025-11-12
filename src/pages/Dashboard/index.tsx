@@ -1,9 +1,12 @@
 // /src/pages/Dashboard/index.tsx
 import React, { useState, useMemo } from 'react';
-import { evaluationRuns } from '../../data/mockData';
+import { evaluationRuns as mockData } from '../../data/mockData';
 import { QueryEvaluation } from '../../globals/types';
 import { DashboardView } from './DashboardView';
 import { CHART_COLORS } from '@styles/color';
+import { useRecoilValue } from 'recoil';
+import { dashboardResultState } from '../../globals/recoil/atoms';
+import { transformData } from './transformData';
 
 const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (item: any) => boolean) => {
     const compressedData = [];
@@ -28,6 +31,7 @@ const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (ite
 };
 
 export const DashboardPage: React.FC = () => {
+    const evaluationRuns = useRecoilValue(dashboardResultState);
     const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
     const [selectedModule, setSelectedModule] = useState<string>(evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName);
     const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
