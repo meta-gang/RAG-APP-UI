@@ -1,6 +1,5 @@
 // /src/pages/Dashboard/index.tsx
 import React, { useState, useMemo } from 'react';
-import { evaluationRuns as mockData } from '../../data/mockData';
 import { QueryEvaluation } from '../../globals/types';
 import { DashboardView } from './DashboardView';
 import { CHART_COLORS } from '@styles/color';

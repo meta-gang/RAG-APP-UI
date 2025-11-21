@@ -1,4 +1,3 @@
-// /src/pages/Settings/Settings.styled.ts
 import styled from 'styled-components';
 
 export const SettingsContainer = styled.div`

@@ -1,14 +1,9 @@
-// /src/pages/Settings/index.tsx
-// [병합 완료] - 재준님의 Recoil 연동 + 문규님의 socket 전송 로직
-
 import React, { useState, useRef } from 'react';
 import { SettingsView } from './SettingsView';
-import { existingQueries } from '../../data/mockData';
-
-// 1. Recoil과 소켓 임포트 (문규님 코드 + 재준님 코드)
+import { existingQueries } from '../../data';  // 여기 
 import { useRecoilValue } from 'recoil';
 import { appLoadingState } from '../../globals/recoil/atoms';
-import { socket } from '../../apis/socket'; // 문규님의 socket 임포트
+import { socket } from '../../apis/socket';
 
 interface SettingsPageProps {
     setCurrentPage: (page: string) => void;

@@ -3,7 +3,7 @@ import { EvaluationRun } from '@type/index';
 import { NavInfo } from '@type/index';
 import { atom } from 'recoil';
 import { recoilPersist } from 'recoil-persist';
-import { evaluationRuns as mockData } from '../../data/mockData';
+import { evaluationRuns as mockData } from '../../data';
 
 const { persistAtom } = recoilPersist();
 

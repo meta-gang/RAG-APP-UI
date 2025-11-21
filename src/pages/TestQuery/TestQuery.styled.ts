@@ -1,4 +1,3 @@
-// /src/pages/TestQuery/TestQuery.styled.ts
 import styled from 'styled-components';
 
 export const PageLayout = styled.div`
@@ -23,7 +22,6 @@ export const Panel = styled.div`
   overflow: hidden;
 `;
 
-// [수정] FlowPanel: 그래프 시각화를 위해 높이를 지정하고 그리드 위치를 조정합니다.
 export const FlowPanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 1 / 4; /* 1-3번째 열 */
@@ -31,7 +29,7 @@ export const FlowPanel = styled(Panel)`
     height: 600px;
   }
 `;
-// [수정] LiveScorePanel: 그리드 위치를 조정합니다.
+
 export const LiveScorePanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 1 / 4; /* 2-3번째 열 */
@@ -39,7 +37,6 @@ export const LiveScorePanel = styled(Panel)`
   }
 `;
 
-// [수정] ResultPanel: 그리드 위치를 조정합니다.
 export const ResultPanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 4 / 6; /* 1-3번째 열 */
@@ -47,7 +44,6 @@ export const ResultPanel = styled(Panel)`
   }
 `;
 
-// [수정] ChatPanel: 그리드 위치를 조정합니다.
 export const ChatPanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 4 / 6; /* 4-5번째 열 */
@@ -55,7 +51,7 @@ export const ChatPanel = styled(Panel)`
     height: 600px;
   }
 `;
-// [수정] MetricsPanel: 그리드 위치를 조정합니다.
+
 export const MetricsPanel = styled(Panel)`
   @media (min-width: 1024px) {
     grid-column: 1 / -1; /* 모든 열 */
@@ -63,7 +59,6 @@ export const MetricsPanel = styled(Panel)`
   }
 `;
 
-// ... 이하 스타일은 기존과 동일합니다 ...
 export const ModuleSection = styled.div`
   margin-bottom: 2rem;
   &:last-child {

@@ -3,30 +3,15 @@ import React, { useEffect } from 'react';
 import { useRecoilState } from 'recoil';
 import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
-import { chatEvaluationRun } from '../../data/mockUserData';
 import { socket } from '../../apis/socket';
 
 type ModuleStatus = 'pending' | 'loading' | 'completed';
 
 export const TestQueryPage: React.FC = () => {
-  // [추가] 모듈 연결 구조 정의 (임시 데이터)
   type ModulePair = [string, string];
-  const modulePairs: ModulePair[] = [
-    ['A', 'B'],
-    ['B', 'C'],
-    ['B', 'D'],
-    ['B', 'E'],
-    ['C', 'F'],
-    ['C', 'G'],
-    ['D', 'I'],
-    ['E', 'I'],
-    ['F', 'I'],
-    ['G', 'I'],
-    ['H', 'I'],
-    ['I', 'J'],
-  ];
+  const modulePairs: ModulePair[] = [];
 
-  // [수정] 실행 순서를 modulePairs 기반으로 동적 생성
+  // 실행 순서를 modulePairs 기반으로 동적 생성
   const pipeline = (() => {
     const order: string[] = [];
     const visited = new Set<string>();
@@ -48,7 +33,7 @@ export const TestQueryPage: React.FC = () => {
     return order;
   })();
 
-  // [추가] BFS로 모듈의 레벨을 계산하는 함수
+  // BFS로 모듈의 레벨 계산
   const calculateModuleLevels = (modulePairs: ModulePair[]) => {
     const graph: Record<string, string[]> = {};
     const levels: Record<string, number> = {};
@@ -95,7 +80,7 @@ export const TestQueryPage: React.FC = () => {
 
   const { levels, modulesByLevel } = calculateModuleLevels(modulePairs);
 
-  // [추가] 각 모듈의 위치 계산
+  // 각 모듈의 위치 계산
   const modulePositions = Object.entries(levels).reduce(
     (acc, [module, level]) => {
       const moduleIndex = modulesByLevel[level].indexOf(module);
@@ -114,7 +99,7 @@ export const TestQueryPage: React.FC = () => {
     {} as Record<string, { x: number; y: number }>,
   );
 
-  // [추가] 그래프에 표시할 고유한 모듈 이름 집합
+  // 그래프에 표시할 고유 모듈 이름 집합
   const pipelineSet = Array.from(new Set(pipeline));
 
   const [tqState, setTqState] = useRecoilState(testQueryState);
@@ -133,7 +118,7 @@ export const TestQueryPage: React.FC = () => {
     }
   }, []);
 
-  // websocket 연결 위해 추가한 부분
+  // websocket
   useEffect(() => {
     // WebSocket 연결
     socket.connect();
@@ -212,7 +197,7 @@ export const TestQueryPage: React.FC = () => {
       messages: [...prev.messages, { sender: 'user', text: query }],
       metrics: [],
       moduleStatuses: initialStatuses,
-      activeConnections: [], // [수정] activeConnections 초기화
+      activeConnections: [],
     }));
 
     // WebSocket으로 쿼리 전송
@@ -229,7 +214,7 @@ export const TestQueryPage: React.FC = () => {
       metrics: [],
       moduleStatuses: initialStatuses,
       liveMetricsHistory: [],
-      activeConnections: [], // [수정] activeConnections 초기화
+      activeConnections: [],
     });
   };
 
@@ -253,7 +238,6 @@ export const TestQueryPage: React.FC = () => {
 
   return (
     <TestQueryView
-      // [수정] View에 새로운 props 전달
       pipeline={pipeline}
       pipelineSet={pipelineSet}
       modulePairs={modulePairs}

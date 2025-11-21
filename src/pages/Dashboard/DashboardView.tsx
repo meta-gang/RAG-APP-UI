@@ -1,4 +1,3 @@
-// /src/pages/Dashboard/DashboardView.tsx
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
@@ -41,7 +40,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   return (
     <S.DashboardContainer>
-      {/* ✨ [수정] KPI 카드 섹션을 Swiper 캐러셀로 변경합니다. */}
+      {}
       <S.KpiCardWrapper>
         <Swiper
           modules={[Navigation]}

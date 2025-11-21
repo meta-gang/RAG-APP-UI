@@ -1,4 +1,3 @@
-// src/pages/Dashboard/Dashboard.styled.ts
 import styled from 'styled-components';
 
 export const DashboardContainer = styled.div`
@@ -17,7 +16,6 @@ export const GridContainer = styled.div`
   }
 `;
 
-// ✨ [추가] KPI 카드 캐러셀을 위한 스타일
 export const KpiCardWrapper = styled.div`
   position: relative; // 화살표 버튼의 기준점이 되도록 설정
   
@@ -35,7 +33,6 @@ export const KpiCardWrapper = styled.div`
   }
 `;
 
-// ✨ [추가] 캐러셀 좌우 화살표 버튼 스타일
 export const CarouselArrow = styled.button`
   position: absolute;
   top: 50%;

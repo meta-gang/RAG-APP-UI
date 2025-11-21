@@ -1,4 +1,3 @@
-// /src/pages/TestQuery/TestQueryView.tsx
 import React, { useRef, useEffect } from 'react';
 import * as S from './TestQuery.styled';
 import {
@@ -13,16 +12,14 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { evaluationRuns } from '../../data/mockData';
+import { evaluationRuns } from '../../data';
 import { CHART_COLORS } from '../../globals/styles/color';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Accordion } from '../../components/Accordion';
 import { LiveMetric } from '../../globals/recoil/atoms';
-// [추가] reactflow 관련 라이브러리 import
 import ReactFlow, { Controls, Background, MarkerType, Handle, Position } from 'reactflow';
-import 'reactflow/dist/style.css'; // reactflow 스타일 import
+import 'reactflow/dist/style.css';
 
-// [추가] 그래프의 커스텀 노드 컴포넌트
 const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
   return (
     <div
@@ -31,10 +28,10 @@ const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
         borderRadius: '8px',
         background:
           data.status === 'loading'
-            ? 'rgba(79, 70, 229, 0.3)' // Indigo
+            ? 'rgba(79, 70, 229, 0.3)'
             : data.status === 'completed'
-              ? 'rgba(52, 211, 153, 0.2)' // Green
-              : '#374151', // Gray
+              ? 'rgba(52, 211, 153, 0.2)'
+              : '#374151',
         border: '1px solid #4b5563',
         color: '#E5E7EB',
         minWidth: '250px',
@@ -73,7 +70,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-// [수정] Props 인터페이스에 그래프 관련 타입 추가
 interface TestQueryViewProps {
   pipeline: string[];
   pipelineSet: string[];
@@ -157,7 +153,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             <RefreshCw size={14} />
           </S.ResetButton>
         </S.TestQueryHeader>
-        {/* [수정] FlowList를 ReactFlow 컴포넌트로 교체 */}
+        {}
         <ReactFlow
           proOptions={{ hideAttribution: true }}
           nodes={pipelineSet.map((module) => ({

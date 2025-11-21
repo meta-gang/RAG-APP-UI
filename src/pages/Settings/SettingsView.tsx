@@ -1,4 +1,3 @@
-// /src/pages/Settings/SettingsView.tsx
 import React from 'react';
 import { Upload, PlayCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import * as S from './Settings.styled';
@@ -19,7 +18,6 @@ interface SettingsViewProps {
     filePath: string;
   }>;
   
-  // Event Handlers
   handleNextStep: () => void;
   handlePrevStep: () => void;
   handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
