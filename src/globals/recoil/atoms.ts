@@ -3,7 +3,6 @@ import { EvaluationRun } from '@type/index';
 import { NavInfo } from '@type/index';
 import { atom } from 'recoil';
 import { recoilPersist } from 'recoil-persist';
-import { evaluationRuns as mockData } from '../../data';
 
 const { persistAtom } = recoilPersist();
 
@@ -30,8 +29,6 @@ interface TestQueryState {
   liveMetricsHistory: LiveMetric[]; // 차트 데이터 기록을 위한 배열
   activeConnections: [string, string][]; // [추가] 그래프의 활성화된 연결을 추적
 }
-
-
 
 const defaultTestQueryState: TestQueryState = {
   messages: [],
@@ -76,5 +73,5 @@ export const appLoadingState = atom<AppLoadingState>({
 //    기본값으로 mockData를 사용합니다.
 export const dashboardResultState = atom<EvaluationRun[]>({
   key: 'dashboardResultState',
-  default: mockData,
+  default: [],
 });

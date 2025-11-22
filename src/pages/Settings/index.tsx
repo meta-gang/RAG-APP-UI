@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { SettingsView } from './SettingsView';
-import { existingQueries } from '../../data';  // 여기 
 import { useRecoilValue } from 'recoil';
 import { appLoadingState } from '../../globals/recoil/atoms';
 import { socket } from '../../apis/socket';
@@ -10,12 +9,27 @@ interface SettingsPageProps {
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) => {
-    // --- 페이지 단계 및 폼 데이터 관련 State (공통) ---
     const [step, setStep] = useState<number>(1);
     const [files, setFiles] = useState<File[]>([]);
     const [querySource, setQuerySource] = useState<'manual' | 'llm'>("manual");
     const [llmOption, setLlmOption] = useState<'new' | 'existing'>("new");
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // 기존 질문 목록을 소켓으로 받아와 상태로 관리
+    const [existingQueries, setExistingQueries] = useState<any[]>([]);
+
+    React.useEffect(() => {
+        // 기존 질문 목록 수신
+        const handleExistingQueries = (data: any) => {
+            setExistingQueries(data.queries || []);
+        };
+        socket.on('existing-queries', handleExistingQueries);
+        // 백엔드에 기존 질문 목록 요청
+        socket.send({ topic: 'get-existing-queries' });
+        return () => {
+            socket.off('existing-queries', handleExistingQueries);
+        };
+    }, []);
 
     // --- 2. 로딩 상태 로직 (재준님 코드 - Recoil 연동) ---
     // 로컬 useState(isRunning, progress)를 제거하고, Recoil 전역 상태를 구독합니다.
@@ -115,9 +129,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
             } else {
                 // 기존 질문 사용의 경우
                 // [정우님 명세서]에 맞게 수정 (file_path, llm_model)
-                // TODO: existingQueries 목업 데이터가 파일 경로가 아니라서 임시 경로 사용
+                // 기존 질문 목록을 state에서 사용
                 const selectedQueryData = existingQueries.find(q => q.id === selectedQueryId?.value);
-                const filePath = selectedQueryData ? `./data/${selectedQueryData}.txt` : './data/default.txt';
+                const filePath = selectedQueryData ? selectedQueryData.file_path || './data/default.txt' : './data/default.txt';
 
                 socket.sendLLMQuery({
                     llm_option: 'made-query',
@@ -135,9 +149,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
     return (
         <SettingsView
             step={step}
-            isRunning={isRunning} // 전역 상태에서 가져온 값
-            progress={progress} // 전역 상태에서 계산한 값
-            progressMessage={progressMessage} // 전역 상태에서 계산한 값
+            isRunning={isRunning}
+            progress={progress}
+            progressMessage={progressMessage}
             handleNextStep={handleNextStep}
             handlePrevStep={handlePrevStep}
             files={files}

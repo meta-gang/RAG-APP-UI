@@ -1,11 +1,10 @@
-// /src/pages/Dashboard/index.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { QueryEvaluation } from '../../globals/types';
 import { DashboardView } from './DashboardView';
 import { CHART_COLORS } from '@styles/color';
-import { useRecoilValue } from 'recoil';
-import { dashboardResultState } from '../../globals/recoil/atoms';
-import { transformData } from './transformData';
+import { useRecoilValue, useSetRecoilState } from 'recoil';
+import { dashboardResultState, appLoadingState } from '../../globals/recoil/atoms';
+import { socket } from '../../apis/socket';
 
 const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (item: any) => boolean) => {
     const compressedData = [];
@@ -31,10 +30,60 @@ const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (ite
 
 export const DashboardPage: React.FC = () => {
     const evaluationRuns = useRecoilValue(dashboardResultState);
-    const [selectedDate, setSelectedDate] = useState<string>(evaluationRuns[evaluationRuns.length - 1].date);
-    const [selectedModule, setSelectedModule] = useState<string>(evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName);
+    const setDashboardResult = useSetRecoilState(dashboardResultState);
+    const setAppLoading = useSetRecoilState(appLoadingState);
+    const [selectedDate, setSelectedDate] = useState<string>(
+        evaluationRuns.length > 0 && evaluationRuns[evaluationRuns.length - 1].date
+            ? evaluationRuns[evaluationRuns.length - 1].date
+            : ''
+    );
+    const [selectedModule, setSelectedModule] = useState<string>(
+        evaluationRuns.length > 0 && evaluationRuns[evaluationRuns.length - 1].modules && evaluationRuns[evaluationRuns.length - 1].modules.length > 0
+            ? evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName
+            : ''
+    );
     const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
     const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
+    
+    // 최초 실행 시 백으로 초기 메시지 전송 및 로딩 화면
+    useEffect(() => {
+        // 기존 데이터가 있으면 메시지 전송 & 로딩화면 절차 실행하지 않음
+        if (evaluationRuns.length > 0) return;
+
+        setAppLoading({
+            isLoading: true,
+            message: 'Initializing...',
+            totalQueries: 0,
+            completedQueries: 0,
+        });
+        socket.connect();
+        socket.send({ topic: 'start!', flow_id: 12 });
+
+        // history 응답 핸들러
+        const handleDashboardHistory = (data: any) => {
+            if (data.topic === 'history' && data.history) {
+                const newRun = require('./transformData').transformData(data.history);
+                setDashboardResult([newRun]);
+                setAppLoading({
+                    isLoading: false,
+                    message: '',
+                    totalQueries: 0,
+                    completedQueries: 0,
+                });
+                setSelectedDate(newRun.date ?? '');
+                setSelectedModule(
+                    newRun.modules && newRun.modules.length > 0 && newRun.modules[0].moduleName
+                        ? newRun.modules[0].moduleName
+                        : ''
+                );
+            }
+        };
+        socket.on('history', handleDashboardHistory);
+
+        return () => {
+            socket.off('history', handleDashboardHistory);
+        };
+    }, [setDashboardResult, setAppLoading, evaluationRuns.length]);
 
     const allModuleNames = useMemo(() => {
         const names = new Set<string>();
