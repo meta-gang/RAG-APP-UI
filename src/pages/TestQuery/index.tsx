@@ -9,10 +9,22 @@ type ModuleStatus = 'pending' | 'loading' | 'completed';
 
 export const TestQueryPage: React.FC = () => {
   type ModulePair = [string, string];
-  const modulePairs: ModulePair[] = [];
+  const [modulePairs, setModulePairs] = React.useState<ModulePair[]>([]);
 
-  // 실행 순서를 modulePairs 기반으로 동적 생성
   const pipeline = (() => {
+      React.useEffect(() => {
+        const handleModulePairs = (data: any) => {
+          if (data.topic === 'rag-container' && Array.isArray(data['rag-container'])) {
+            setModulePairs(data['rag-container']);
+          }
+        };
+        socket.on('rag-container', handleModulePairs);
+        socket.send({ topic: 'get-module-pairs' });
+        return () => {
+          socket.off('rag-container', handleModulePairs);
+        };
+      }, []);
+      
     const order: string[] = [];
     const visited = new Set<string>();
     if (modulePairs.length > 0) {

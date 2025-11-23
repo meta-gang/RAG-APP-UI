@@ -70,7 +70,6 @@ export const appLoadingState = atom<AppLoadingState>({
 // 4. Dashboard가 사용할 최종 결과 데이터 atom
 //    Settings 페이지에서 평가를 실행하면, App.tsx가 이 atom을 업데이트합니다.
 //    DashboardPage는 이 atom을 구독하여 최신 데이터를 표시합니다.
-//    기본값으로 mockData를 사용합니다.
 export const dashboardResultState = atom<EvaluationRun[]>({
   key: 'dashboardResultState',
   default: [],
