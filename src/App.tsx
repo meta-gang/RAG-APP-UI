@@ -134,10 +134,8 @@ const App: React.FC = () => {
       <LoadingModal /> 
       
       <AppContainer>
-        <Header 
-          currentPage={currentPath} 
-          setCurrentPage={(page) => navigate(`/${page}`)} 
-        />
+        <Header />
+        
         <MainContent>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

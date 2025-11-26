@@ -1,42 +1,25 @@
+// src/components/Header/index.tsx
+import React from 'react';
+import { HeaderContainer, TitleWrapper, Title, Subtitle, Nav, NavItem } from './Header.styled';
+
 /**
  * 상단 헤더 컴포넌트
- * @param currentPage 현재 활성 페이지
- * @param setCurrentPage 페이지 전환 콜백
+ *
+ * 앱의 제목과 주요 페이지 네비게이션을 제공합니다.
+ * React Router의 NavLink를 사용하여 페이지 이동을 처리합니다.
  */
-
-import React from 'react';
-import { HeaderContainer, TitleWrapper, Title, Subtitle, Nav, NavButton } from './Header.styled';
-
-interface HeaderProps {
-    currentPage: string;
-    setCurrentPage: (page: string) => void;
-}
-
-export const Header: React.FC<HeaderProps> = ({ currentPage, setCurrentPage }) => (
+export const Header: React.FC = () => {
+  return (
     <HeaderContainer>
-        <TitleWrapper>
-            <Title>RAG Evaluation Platform</Title>
-            <Subtitle>On-Premise Document AI Performance Analysis</Subtitle>
-        </TitleWrapper>
-        <Nav>
-            <NavButton
-                onClick={() => setCurrentPage("dashboard")}
-                isActive={currentPage === "dashboard"}
-            >
-                Dashboard
-            </NavButton>
-            <NavButton
-                onClick={() => setCurrentPage("test")}
-                isActive={currentPage === "test"}
-            >
-                Test Query
-            </NavButton>
-            <NavButton
-                onClick={() => setCurrentPage("settings")}
-                isActive={currentPage === "settings"}
-            >
-                Settings
-            </NavButton>
-        </Nav>
+      <TitleWrapper>
+        <Title>RAG Evaluation Platform</Title>
+        <Subtitle>On-Premise Document AI Performance Analysis</Subtitle>
+      </TitleWrapper>
+      <Nav>
+        <NavItem to="/dashboard">Dashboard</NavItem>
+        <NavItem to="/test">Test Query</NavItem>
+        <NavItem to="/settings">Settings</NavItem>
+      </Nav>
     </HeaderContainer>
-);
+  );
+};

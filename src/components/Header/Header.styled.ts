@@ -1,15 +1,17 @@
-/**
- * Header 컴포넌트의 스타일 정의
- */
+// src/components/Header/Header.styled.ts
 import styled from 'styled-components';
+import { NavLink } from 'react-router-dom'; 
 
+/**
+ * 헤더 전체 레이아웃 컨테이너
+ */
 export const HeaderContainer = styled.header`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #374151; // border-gray-700
+  border-bottom: 1px solid #374151;
 
   @media (min-width: 640px) {
     flex-direction: row;
@@ -17,58 +19,77 @@ export const HeaderContainer = styled.header`
   }
 `;
 
+/**
+ * 타이틀 영역 래퍼
+ */
 export const TitleWrapper = styled.div``;
 
+/**
+ * 메인 타이틀 스타일
+ */
 export const Title = styled.h1`
-  font-size: 1.875rem; // text-3xl
+  font-size: 1.875rem;
   font-weight: 800;
   letter-spacing: -0.025em;
   color: #ffffff;
 `;
 
+/**
+ * 서브 타이틀 스타일
+ */
 export const Subtitle = styled.p`
   margin-top: 0.25rem;
-  color: #9ca3af; // text-gray-400
+  color: #9ca3af;
 `;
 
-// Nav 스타일에서 배경색과 테두리를 다시 추가하여 메뉴 그룹을 명확히 표시합니다.
+/**
+ * 네비게이션 메뉴 컨테이너
+ */
 export const Nav = styled.nav`
   display: flex;
   align-items: center;
-  gap: 0.5rem; // 버튼 사이의 간격
+  gap: 0.5rem;
   margin-top: 1rem;
-  border-radius: 0.5rem; // 둥근 모서리
-  background-color: #1f2937; // 배경색 (bg-gray-800)
-  padding: 0.25rem; // 내부 여백
-  border: 1px solid #374151; // 테두리 (border-gray-700)
+  border-radius: 0.5rem;
+  background-color: #1f2937;
+  padding: 0.25rem;
+  border: 1px solid #374151;
 
   @media (min-width: 640px) {
     margin-top: 0;
   }
 `;
 
-interface NavButtonProps {
-  isActive: boolean;
-}
-
-// 버튼 스타일은 이전에 개선된 깔끔한 디자인을 유지합니다.
-export const NavButton = styled.button<NavButtonProps>`
+/**
+ * 네비게이션 링크 아이템 (NavLink 사용)
+ *
+ * - react-router-dom의 NavLink를 스타일링합니다.
+ * - 활성화 상태일 때 자동으로 'active' 클래스가 적용되므로 &.active로 스타일을 지정합니다.
+ */
+export const NavItem = styled(NavLink)`
   padding: 0.5rem 1rem;
-  font-size: 0.875rem; // text-sm
+  font-size: 0.875rem;
   font-weight: 600;
-  border-radius: 0.375rem; // rounded-md
+  border-radius: 0.375rem;
   border: none;
   cursor: pointer;
+  text-decoration: none; /* 링크 밑줄 제거 */
   
   transition: color 0.2s, background-color 0.2s;
   
-  // 활성화된 버튼은 배경색으로 강조
-  background-color: ${(props) => (props.isActive ? '#4f46e5' : 'transparent')}; // bg-indigo-600
-  color: ${(props) => (props.isActive ? '#ffffff' : '#9ca3af')}; // text-white or text-gray-400
+  /* 기본 상태 (비활성) */
+  background-color: transparent;
+  color: #9ca3af;
 
-  // 호버 효과는 활성화되지 않은 버튼에만 적용하여 더 나은 UX 제공
+  /* 호버 효과 */
   &:hover {
-    background-color: ${(props) => (props.isActive ? '#4f46e5' : '#374151')}; // hover:bg-gray-700
+    background-color: #374151;
+    color: #ffffff;
+  }
+
+  /* 활성화 상태 (현재 페이지일 때) */
+  &.active {
+    background-color: #4f46e5;
     color: #ffffff;
   }
 `;
