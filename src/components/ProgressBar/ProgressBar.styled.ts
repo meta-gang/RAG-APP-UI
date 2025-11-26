@@ -1,4 +1,6 @@
-// src/components/ProgressBar/ProgressBar.styled.ts
+/**
+ * ProgressBar 구성 요소에 사용되는 스타일 정의
+ */
 import styled from 'styled-components';
 
 export const ProgressBarContainer = styled.div`

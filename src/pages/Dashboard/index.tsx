@@ -6,6 +6,14 @@ import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { dashboardResultState, appLoadingState } from '../../globals/recoil/atoms';
 import { socket } from '../../apis/socket';
 
+/**
+ * 차트 데이터 압축 함수
+ * - 연속적으로 데이터가 없는 구간을 요약(ellipsis)하여 출력함
+ * @param data 원본 데이터 배열
+ * @param allModuleNames 모든 모듈 이름 배열(ellipsis 항목에 키를 맞추기 위함)
+ * @param keyCheck 항목에 실제 데이터가 있는지 판별하는 콜백
+ * @returns 압축된 데이터 배열
+ */
 const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (item: any) => boolean) => {
     const compressedData = [];
     let consecutiveNulls = 0;
@@ -45,22 +53,39 @@ export const DashboardPage: React.FC = () => {
     const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
     const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
     
-    // 최초 실행 시 백으로 초기 메시지 전송 및 로딩 화면
+    /**
+     * 초기 마운트 시 백엔드에 히스토리 요청을 전송하고 응답을 처리합니다.
+     * - 응답 대기 타임아웃 처리 포함
+     */
     useEffect(() => {
         // 기존 데이터가 있으면 메시지 전송 & 로딩화면 절차 실행하지 않음
         if (evaluationRuns.length > 0) return;
 
+        
         setAppLoading({
             isLoading: true,
             message: 'Initializing...',
             totalQueries: 0,
             completedQueries: 0,
         });
+        
         socket.connect();
         socket.send({ topic: 'start!', flow_id: 12 });
 
+        const timeoutId = setTimeout(() => {
+            setAppLoading((prev) => {
+                // 로딩 중이라면 에러 메시지 띄우고 끄기
+                if (prev.isLoading) {
+                    alert("서버 응답이 없습니다. 백엔드 연결을 확인해주세요.");
+                    return { ...prev, isLoading: false };
+                }
+                return prev;
+            });
+        }, 5000);
+
         // history 응답 핸들러
         const handleDashboardHistory = (data: any) => {
+            clearTimeout(timeoutId);
             if (data.topic === 'history' && data.history) {
                 const newRun = require('./transformData').transformData(data.history);
                 setDashboardResult([newRun]);
@@ -81,6 +106,7 @@ export const DashboardPage: React.FC = () => {
         socket.on('history', handleDashboardHistory);
 
         return () => {
+            clearTimeout(timeoutId);
             socket.off('history', handleDashboardHistory);
         };
     }, [setDashboardResult, setAppLoading, evaluationRuns.length]);
@@ -133,6 +159,9 @@ export const DashboardPage: React.FC = () => {
     const selectedRun = useMemo(() => evaluationRuns.find((run) => run.date === selectedDate), [selectedDate]);
     const selectedModuleData = useMemo(() => selectedRun?.modules.find((m) => m.moduleName === selectedModule), [selectedRun, selectedModule]);
 
+    /**
+     * 모듈별 평균 성능 데이터를 생성하여 차트에 사용할 형식으로 반환합니다.
+     */
     const modulePerformanceData = useMemo(() => {
         const rawData = evaluationRuns.map((run) => {
             const entry: { date: string; [key: string]: number | string | null } = { date: run.date };
@@ -156,6 +185,9 @@ export const DashboardPage: React.FC = () => {
         return compressChartData(rawData, allModuleNames, (item) => item._hasData);
     }, [allModuleNames]);
 
+    /**
+     * 선택된 모듈의 메트릭 분포 및 상세 조회 데이터 계산
+     */
     const metricPerformanceBreakdownData = useMemo(() => {
         const breakdown: { [metricName: string]: any[] } = {};
         const allMetrics = new Set<string>();

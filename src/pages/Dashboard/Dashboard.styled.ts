@@ -1,11 +1,17 @@
 import styled from 'styled-components';
 
+/**
+ * 전체 컨테이너: 수직 스택 레이아웃
+ */
 export const DashboardContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2rem;
 `;
 
+/**
+ * 그리드 컨테이너: 반응형 1~3열 레이아웃
+ */
 export const GridContainer = styled.div`
   display: grid;
   grid-template-columns: 1fr;
@@ -16,23 +22,26 @@ export const GridContainer = styled.div`
   }
 `;
 
+/**
+ * KPI 카드 래퍼: Swiper와 화살표 버튼을 포함
+ */
 export const KpiCardWrapper = styled.div`
-  position: relative; // 화살표 버튼의 기준점이 되도록 설정
-  
-  // Swiper 컨테이너의 기본 스타일
-  // sm- 640px 이상일 때만 좌우 화살표 공간 확보
+  position: relative;
+
   @media (min-width: 640px) {
     .swiper-container {
       padding: 0 2.5rem;
     }
   }
 
-  // Swiper 슬라이드 아이템 스타일
   .swiper-slide {
-    width: auto; // 콘텐츠 크기에 맞게 너비 조절
+    width: auto;
   }
 `;
 
+/**
+ * 캐러셀 화살표 버튼 스타일
+ */
 export const CarouselArrow = styled.button`
   position: absolute;
   top: 50%;
@@ -44,13 +53,12 @@ export const CarouselArrow = styled.button`
   background-color: rgba(255, 255, 255, 0.1);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  display: none; // 모바일에서는 기본적으로 숨김
+  display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: background-color 0.2s;
 
-  // sm- 640px 이상일 때만 버튼을 보여줌
   @media (min-width: 640px) {
     display: flex;
   }
@@ -59,13 +67,11 @@ export const CarouselArrow = styled.button`
     background-color: rgba(255, 255, 255, 0.2);
   }
 
-  // disabled 상태일 때 (더 이상 넘길 수 없을 때)
   &:disabled {
     opacity: 0.3;
     cursor: not-allowed;
   }
 
-  // 왼쪽, 오른쪽 버튼 위치 지정
   &.arrow-left {
     left: 0;
   }
@@ -128,7 +134,7 @@ export const IconButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  
+
   color: #9ca3af; // text-gray-400
 
   &:hover {

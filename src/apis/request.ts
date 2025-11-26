@@ -1,4 +1,9 @@
-// /src/apis/request.ts
+/**
+ * Axios 인스턴스 및 인터셉터 설정
+ * - baseURL: 환경변수 기반
+ * - 요청 시 access_token을 Authorization 헤더에 추가
+ * - 응답 에러 처리(5xx -> 유지보수 페이지, 401 -> 로그인 페이지)
+ */
 
 import axios from 'axios';
 import { DOMAIN } from './domain';

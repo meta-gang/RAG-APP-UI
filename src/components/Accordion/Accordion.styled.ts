@@ -1,4 +1,6 @@
-// src/components/Accordion/Accordion.styled.ts
+/**
+ * Accordion 관련 스타일 정의
+ */
 import styled from 'styled-components';
 
 export const AccordionWrapper = styled.div`

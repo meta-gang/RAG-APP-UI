@@ -1,3 +1,6 @@
+/**
+ * Divider 스타일 정의
+ */
 import styled from "styled-components";
 import { EColor } from "@styles/color";
 

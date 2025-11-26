@@ -32,6 +32,10 @@ interface DashboardViewProps {
   allModuleNames: string[];
 }
 
+/**
+ * DashboardView 컴포넌트
+ * @param props 화면 렌더링에 필요한 KPI, 차트 데이터, 핸들러들을 포함
+ */
 export const DashboardView: React.FC<DashboardViewProps> = ({
     kpiData, zoomedMetric, selectedDate, selectedModule, zoomedFrequencyData,
     modulePerformanceData, handleDotClick, handleFrequencyBarClick, moduleColors,
@@ -40,7 +44,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   return (
     <S.DashboardContainer>
-      {}
+      {/* KPI 카드 및 차트 영역 */}
       <S.KpiCardWrapper>
         <Swiper
           modules={[Navigation]}
@@ -67,6 +71,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </S.KpiCardWrapper>
 
       <S.GridContainer>
+        {/* 메인 라인 차트 */}
         <S.MainChartWrapper>
           <S.ChartBox>
             <S.BoxTitle>RAG Performance Change</S.BoxTitle>
@@ -92,6 +97,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </S.ChartBox>
         </S.MainChartWrapper>
         
+        {/* 사이드 패널: 메트릭별 분포 */}
         <S.SidePanelWrapper>
           <S.ChartBox>
             <S.BoxHeader>
@@ -125,6 +131,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </S.SidePanelWrapper>
       </S.GridContainer>
       
+      {/* 줌인 모달 영역 */}
       <AnimatePresence>
         {zoomedMetric && (
           <S.ModalOverlay onClick={handleZoomOut}>
@@ -187,6 +194,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         )}
       </AnimatePresence>
       
+      {/* 메트릭 퍼포먼스 브레이크다운 */}
       <div>
         <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>Metric Performance Breakdown</S.BoxTitle>
         <S.GridContainer style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))' }}>

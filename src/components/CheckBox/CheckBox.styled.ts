@@ -1,3 +1,6 @@
+/**
+ * CheckBox 관련 스타일 정의
+ */
 import { EColor } from '@styles/color';
 import { body3 } from '@styles/font';
 import styled from 'styled-components';

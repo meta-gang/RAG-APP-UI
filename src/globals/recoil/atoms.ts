@@ -1,3 +1,4 @@
+// src/globals/recoil/atoms.ts
 import { DefaultNavInfo } from '@type/defaults';
 import { EvaluationRun } from '@type/index';
 import { NavInfo } from '@type/index';
@@ -6,54 +7,77 @@ import { recoilPersist } from 'recoil-persist';
 
 const { persistAtom } = recoilPersist();
 
+/**
+ * 네비게이션 상태 Atom
+ * 현재 페이지와 페이지 방문 기록을 관리합니다.
+ */
 export const naviState = atom<NavInfo>({
   key: 'naviState',
   default: DefaultNavInfo,
   effects_UNSTABLE: [persistAtom],
 });
 
-// TestQuery 페이지 상태를 위한 atom 추가
+/**
+ * 모듈 실행 상태 타입 정의
+ * pending: 대기 중, loading: 실행 중, completed: 완료됨
+ */
 type ModuleStatus = 'pending' | 'loading' | 'completed';
 
-// 실시간 차트에 사용될 데이터 구조 정의
+/**
+ * 실시간 차트 데이터 인터페이스
+ * TestQuery 페이지의 실시간 점수 그래프에 사용됩니다.
+ */
 export interface LiveMetric {
-  query: string; // 어떤 질문이었는지 저장
-  queryNumber: number; // 몇 번째 질문인지 저장
-  [metricName: string]: string | number; // 각 메트릭 점수를 저장 (예: ACS: 85.2)
+  query: string; // 쿼리 내용
+  queryNumber: number; // 쿼리 순번
+  [metricName: string]: string | number; // 메트릭 이름과 점수
 }
 
+/**
+ * TestQuery 페이지의 전체 상태 인터페이스
+ */
 interface TestQueryState {
-  messages: { sender: 'user' | 'bot'; text: string }[];
-  metrics: { moduleName: string; metrics: { name: string; score: number }[] }[];
-  moduleStatuses: Record<string, ModuleStatus>;
-  liveMetricsHistory: LiveMetric[]; // 차트 데이터 기록을 위한 배열
-  activeConnections: [string, string][]; // [추가] 그래프의 활성화된 연결을 추적
+  messages: { sender: 'user' | 'bot'; text: string }[]; // 채팅 메시지 목록
+  metrics: { moduleName: string; metrics: { name: string; score: number }[] }[]; // 모듈별 메트릭 결과
+  moduleStatuses: Record<string, ModuleStatus>; // 각 모듈의 현재 상태
+  liveMetricsHistory: LiveMetric[]; // 차트용 히스토리 데이터
+  activeConnections: [string, string][]; // 그래프에서 활성화된 엣지(연결선)
 }
 
+/**
+ * TestQueryState 기본값
+ */
 const defaultTestQueryState: TestQueryState = {
   messages: [],
   metrics: [],
   moduleStatuses: {},
   liveMetricsHistory: [],
-  activeConnections: [], // [추가] 기본값 설정
+  activeConnections: [],
 };
 
+/**
+ * TestQuery 페이지 상태 Atom
+ * 실시간 테스트 화면의 UI 상태를 전역적으로 관리합니다.
+ */
 export const testQueryState = atom<TestQueryState>({
   key: 'testQueryState',
   default: defaultTestQueryState,
-  // 이 상태는 페이지를 떠나도 유지되지만, 브라우저를 새로고침하면 초기화됩니다.
-  // 만약 새로고침 시에도 유지하고 싶다면 effects_UNSTABLE: [persistAtom]을 추가하세요.
 });
 
-// 1. 앱 전역 로딩 상태를 위한 타입 정의
+/**
+ * 앱 전역 로딩 상태 인터페이스
+ * RAG 실행 시 진행률 표시 및 모달 제어에 사용됩니다.
+ */
 export interface AppLoadingState {
-  isLoading: boolean;
-  message: string;
-  totalQueries: number;
-  completedQueries: number;
+  isLoading: boolean; // 로딩 모달 표시 여부
+  message: string; // 로딩 메시지
+  totalQueries: number; // 실행할 총 쿼리 수
+  completedQueries: number; // 완료된 쿼리 수
 }
 
-// 2. 기본 상태 정의
+/**
+ * AppLoadingState 기본값
+ */
 const defaultAppLoadingState: AppLoadingState = {
   isLoading: false,
   message: 'Initializing...',
@@ -61,15 +85,20 @@ const defaultAppLoadingState: AppLoadingState = {
   completedQueries: 0,
 };
 
-// 3. 전역 로딩 atom 생성
+/**
+ * 전역 로딩 상태 Atom
+ * 앱 어디서든 로딩 모달을 띄우거나 진행률을 업데이트할 수 있습니다.
+ */
 export const appLoadingState = atom<AppLoadingState>({
   key: 'appLoadingState',
   default: defaultAppLoadingState,
 });
 
-// 4. Dashboard가 사용할 최종 결과 데이터 atom
-//    Settings 페이지에서 평가를 실행하면, App.tsx가 이 atom을 업데이트합니다.
-//    DashboardPage는 이 atom을 구독하여 최신 데이터를 표시합니다.
+/**
+ * 대시보드 최종 결과 데이터 Atom
+ * 백엔드로부터 수신한 전체 평가 결과(EvaluationRun[])를 저장합니다.
+ * Dashboard 페이지는 이 상태를 구독하여 차트와 KPI를 렌더링합니다.
+ */
 export const dashboardResultState = atom<EvaluationRun[]>({
   key: 'dashboardResultState',
   default: [],

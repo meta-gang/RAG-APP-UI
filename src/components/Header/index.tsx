@@ -1,4 +1,9 @@
-// src/components/Header/index.tsx
+/**
+ * 상단 헤더 컴포넌트
+ * @param currentPage 현재 활성 페이지
+ * @param setCurrentPage 페이지 전환 콜백
+ */
+
 import React from 'react';
 import { HeaderContainer, TitleWrapper, Title, Subtitle, Nav, NavButton } from './Header.styled';
 

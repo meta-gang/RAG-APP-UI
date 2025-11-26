@@ -1,4 +1,6 @@
-// src/components/Header/Header.styled.ts
+/**
+ * Header 컴포넌트의 스타일 정의
+ */
 import styled from 'styled-components';
 
 export const HeaderContainer = styled.header`

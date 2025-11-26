@@ -1,3 +1,8 @@
+/**
+ * API 유틸(샘플)
+ * - 실제 엔드포인트 사용 시 request 인스턴스를 사용하세요.
+ */
+
 // import request from './request';
 
 /*

@@ -1,4 +1,9 @@
-// src/components/Accordion/index.tsx
+/**
+ * 아코디언 컴포넌트
+ * @param title 헤더로 렌더할 ReactNode
+ * @param children 펼쳐지는 내용
+ */
+
 import React, { useState, ReactNode } from 'react';
 import * as S from './Accordion.styled';
 import { ChevronRight } from 'lucide-react';

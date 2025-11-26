@@ -1,3 +1,7 @@
+/**
+ * ToggleView 컴포넌트용 스타일 정의
+ * - 토글 컨테이너, 라벨, disabled 상태용 스타일을 제공합니다.
+ */
 import { EColor } from "@styles/color";
 import { Title5 } from "@styles/font";
 import styled from "styled-components";
@@ -40,6 +44,9 @@ export const StyledDisabledToggleView = styled.div`
   margin: 12px;
 `;
 
+/**
+ * Disabled 라벨 스타일
+ */
 export const StyledDisabledLabel = styled.div`
   display: flex;
   justify-content: center;
@@ -48,6 +55,9 @@ export const StyledDisabledLabel = styled.div`
   ${Title5}
 `;
 
+/**
+ * 클릭 가능 라벨 스타일
+ */
 export const OnClickLabel = styled.div`
   display: flex;
   justify-content: center;

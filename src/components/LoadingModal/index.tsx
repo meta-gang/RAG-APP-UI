@@ -1,8 +1,10 @@
-// src/components/LoadingModal/index.tsx
+/**
+ * 전역 로딩 상태를 구독하여 모달로 진행률을 표시하는 컴포넌트
+ */
 import React from 'react';
 import { useRecoilValue } from 'recoil';
 import { appLoadingState } from '../../globals/recoil/atoms';
-import { ProgressBar } from '../ProgressBar'; // ⭐️ 기존 ProgressBar 컴포넌트 임포트
+import { ProgressBar } from '../ProgressBar';
 import * as S from './LoadingModal.styled';
 
 export const LoadingModal: React.FC = () => {

@@ -1,3 +1,7 @@
+/**
+ * Toggle 컴포넌트의 스타일 정의
+ * - checked/disabled 상태에 따른 스타일을 제공합니다.
+ */
 import { EColor } from "@styles/color";
 import styled from "styled-components";
 

@@ -1,17 +1,22 @@
 import styled from 'styled-components';
 
+/**
+ * 페이지 전체 레이아웃
+ */
 export const PageLayout = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.5rem;
 
   @media (min-width: 1024px) {
-    /* [수정] 데스크탑 화면에서 그리드 레이아웃을 재정의합니다. */
     grid-template-columns: repeat(5, 1fr);
-    grid-template-rows: auto auto auto; /* 3개의 행을 정의합니다. */
+    grid-template-rows: auto auto auto;
   }
 `;
 
+/**
+ * 공통 패널 스타일
+ */
 export const Panel = styled.div`
   background-color: #1f2937;
   padding: 1.5rem;
@@ -22,43 +27,61 @@ export const Panel = styled.div`
   overflow: hidden;
 `;
 
+/**
+ * 흐름 패널(ReactFlow)
+ */
 export const FlowPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / 4; /* 1-3번째 열 */
+    grid-column: 1 / 4;
     grid-row: 1 / 2;
     height: 600px;
   }
 `;
 
+/**
+ * 라이브 스코어 패널
+ */
 export const LiveScorePanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / 4; /* 2-3번째 열 */
-    grid-row: 2 / 5; /* 2번째 행 */
-  }
-`;
-
-export const ResultPanel = styled(Panel)`
-  @media (min-width: 1024px) {
-    grid-column: 4 / 6; /* 1-3번째 열 */
+    grid-column: 1 / 4;
     grid-row: 2 / 5;
   }
 `;
 
+/**
+ * 결과 목록 패널
+ */
+export const ResultPanel = styled(Panel)`
+  @media (min-width: 1024px) {
+    grid-column: 4 / 6;
+    grid-row: 2 / 5;
+  }
+`;
+
+/**
+ * 채팅 패널
+ */
 export const ChatPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 4 / 6; /* 4-5번째 열 */
+    grid-column: 4 / 6;
     grid-row: 1 / 2;
     height: 600px;
   }
 `;
 
+/**
+ * 메트릭스 패널
+ */
 export const MetricsPanel = styled(Panel)`
   @media (min-width: 1024px) {
-    grid-column: 1 / -1; /* 모든 열 */
+    grid-column: 1 / -1;
     grid-row: 6 / 7;
   }
 `;
 
+/**
+ * 모듈 섹션
+ */
 export const ModuleSection = styled.div`
   margin-bottom: 2rem;
   &:last-child {
@@ -66,6 +89,9 @@ export const ModuleSection = styled.div`
   }
 `;
 
+/**
+ * 모듈 제목
+ */
 export const ModuleTitle = styled.h3`
   font-size: 1.1rem;
   font-weight: 600;
@@ -73,6 +99,9 @@ export const ModuleTitle = styled.h3`
   margin-bottom: 1rem;
 `;
 
+/**
+ * 메트릭스 그리드
+ */
 export const MetricsGrid = styled.div`
   display: flex;
   gap: 1rem;
@@ -80,6 +109,9 @@ export const MetricsGrid = styled.div`
   padding-bottom: 0.5rem;
 `;
 
+/**
+ * 메트릭스 박스
+ */
 export const MetricBox = styled.div`
   position: relative;
   padding-bottom: 1rem;
@@ -87,6 +119,9 @@ export const MetricBox = styled.div`
   flex: 0 0 400px;
 `;
 
+/**
+ * 메트릭스 제목
+ */
 export const MetricTitle = styled.div`
   font-size: 0.875rem;
   font-weight: 600;
@@ -97,12 +132,18 @@ export const MetricTitle = styled.div`
   align-items: center;
 `;
 
+/**
+ * 스크롤 가능한 컨텐츠
+ */
 export const ScrollableContent = styled.div`
   max-height: 400px;
   overflow-y: auto;
   padding-right: 0.5rem;
 `;
 
+/**
+ * 제목
+ */
 export const Title = styled.h2`
   font-size: 1.25rem;
   font-weight: 600;
@@ -111,6 +152,9 @@ export const Title = styled.h2`
   flex-shrink: 0;
 `;
 
+/**
+ * 흐름 목록
+ */
 export const FlowList = styled.div`
   display: flex;
   flex-direction: column;
@@ -118,6 +162,9 @@ export const FlowList = styled.div`
   overflow-y: auto;
 `;
 
+/**
+ * 흐름 항목
+ */
 export const FlowItem = styled.div<{ isActive: boolean; isCompleted: boolean }>`
   padding: 1rem;
   border-radius: 0.5rem;
@@ -135,6 +182,9 @@ export const FlowItem = styled.div<{ isActive: boolean; isCompleted: boolean }>`
   }
 `;
 
+/**
+ * 스피너
+ */
 export const Spinner = styled.div`
   @keyframes spin {
     0% {
@@ -152,6 +202,9 @@ export const Spinner = styled.div`
   animation: spin 1s linear infinite;
 `;
 
+/**
+ * 평가 테이블
+ */
 export const EvaluationTable = styled.div`
   display: flex;
   flex-direction: column;
@@ -159,6 +212,9 @@ export const EvaluationTable = styled.div`
   overflow-y: auto;
 `;
 
+/**
+ * 테이블 행
+ */
 export const TableRow = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -174,6 +230,9 @@ export const TableRow = styled.div`
   }
 `;
 
+/**
+ * 메시지 영역
+ */
 export const MessageArea = styled.div`
   flex-grow: 1;
   min-height: 0;
@@ -184,6 +243,9 @@ export const MessageArea = styled.div`
   gap: 1rem;
 `;
 
+/**
+ * 메시지 래퍼
+ */
 interface MessageWrapperProps {
   sender: 'user' | 'bot';
 }
@@ -193,6 +255,9 @@ export const MessageWrapper = styled.div<MessageWrapperProps>`
   justify-content: ${(props) => (props.sender === 'user' ? 'flex-end' : 'flex-start')};
 `;
 
+/**
+ * 메시지 말풍선
+ */
 export const MessageBubble = styled.div<MessageWrapperProps>`
   max-width: 80%;
   padding: 0.75rem;
@@ -201,6 +266,9 @@ export const MessageBubble = styled.div<MessageWrapperProps>`
   color: ${(props) => (props.sender === 'user' ? '#ffffff' : '#e5e7eb')};
 `;
 
+/**
+ * 입력 폼
+ */
 export const InputForm = styled.form`
   padding-top: 1rem;
   border-top: 1px solid #374151;
@@ -210,6 +278,9 @@ export const InputForm = styled.form`
   flex-shrink: 0;
 `;
 
+/**
+ * 스타일이 적용된 입력창
+ */
 export const StyledInput = styled.input`
   width: 100%;
   background-color: #374151;
@@ -222,6 +293,9 @@ export const StyledInput = styled.input`
   }
 `;
 
+/**
+ * 전송 버튼
+ */
 export const SendButton = styled.button`
   background-color: #4f46e5;
   color: #ffffff;
@@ -236,6 +310,9 @@ export const SendButton = styled.button`
   }
 `;
 
+/**
+ * 테스트 쿼리 헤더
+ */
 export const TestQueryHeader = styled.div`
   display: flex;
   justify-content: space-between;
@@ -243,6 +320,9 @@ export const TestQueryHeader = styled.div`
   flex-shrink: 0;
 `;
 
+/**
+ * 리셋 버튼
+ */
 export const ResetButton = styled.button`
   background-color: #4b5563;
   color: #ffffff;
@@ -257,6 +337,9 @@ export const ResetButton = styled.button`
   }
 `;
 
+/**
+ * 아이콘 버튼
+ */
 export const IconButton = styled.button`
   background: none;
   border: none;

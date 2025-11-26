@@ -29,11 +29,11 @@ export const GlobalStyle = createGlobalStyle`
     }
   }
 
-  /* ✨ [추가] 키보드 포커스 접근성 향상 스타일 */
+  /* 키보드 포커스 접근성 스타일 추가 */
   *:focus-visible {
-    outline: 2px solid #60a5fa; /* 파란색 계열의 선명한 외곽선 */
+    outline: 2px solid #60a5fa;
     outline-offset: 2px;
-    border-radius: 0.25rem; /* 약간의 둥근 모서리 */
+    border-radius: 0.25rem;
   }
 
   /* 스크롤바 디자인 개선 코드 추가 */

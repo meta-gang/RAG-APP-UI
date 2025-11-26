@@ -1,4 +1,9 @@
-// src/components/KPICard/index.tsx
+/**
+ * KPI 카드 컴포넌트
+ * @param title 카드 제목
+ * @param value 표시 값
+ * @param change 성능 변화(선택)
+ */
 import React from 'react';
 import * as S from './KPICard.styled';
 

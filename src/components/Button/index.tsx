@@ -1,3 +1,10 @@
+/**
+ * 아이콘 버튼 컴포넌트
+ * @param label 버튼 텍스트
+ * @param svg 아이콘(선택)
+ * @param onClick 클릭 핸들러
+ * 기타 스타일 관련 props는 선택적
+ */
 import React from 'react';
 import { Content, LabelItem, StyledIconButton, SvgItem } from './Button.styled';
 

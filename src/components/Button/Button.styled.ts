@@ -1,3 +1,6 @@
+/**
+ * 아이콘 버튼 스타일 정의
+ */
 import styled from 'styled-components';
 import {Title5} from '@styles/font';
 import {EColor} from '@styles/color';

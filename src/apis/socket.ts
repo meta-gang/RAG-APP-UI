@@ -1,3 +1,9 @@
+/**
+ * 간단한 WebSocket 클라이언트 래퍼
+ *
+ * - connect/on/off/send 등 기본 API 제공
+ * - subscribe/unsubscribe, run-rag 관련 helper 메서드 포함
+ */
 class SocketClient {
   private ws: WebSocket | null = null;
   private url: string;
@@ -37,6 +43,9 @@ class SocketClient {
     };
   }
 
+  /**
+   * 토픽에 대한 핸들러 등록
+   */
   on(topic: string, handler: (data: any) => void) {
     if (!this.handlers[topic]) {
       this.handlers[topic] = [];
@@ -44,6 +53,9 @@ class SocketClient {
     this.handlers[topic].push(handler);
   }
 
+  /**
+   * 토픽 핸들러 제거
+   */
   off(topic: string, handler: (data: any) => void) {
     if (this.handlers[topic]) {
       this.handlers[topic] = this.handlers[topic].filter(h => h !== handler);

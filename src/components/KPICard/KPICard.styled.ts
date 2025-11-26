@@ -1,4 +1,6 @@
-// src/components/KPICard/KPICard.styled.ts
+/**
+ * KPICard 스타일 정의
+ */
 import styled from 'styled-components';
 
 export const CardContainer = styled.div`

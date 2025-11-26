@@ -20,6 +20,11 @@ import { LiveMetric } from '../../globals/recoil/atoms';
 import ReactFlow, { Controls, Background, MarkerType, Handle, Position } from 'reactflow';
 import 'reactflow/dist/style.css';
 
+/**
+ * 모듈 노드 렌더러
+ * @param data.label 모듈 라벨
+ * @param data.status 노드 상태('pending'|'loading'|'completed')
+ */
 const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
   return (
     <div
@@ -53,6 +58,9 @@ const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
   );
 };
 
+/**
+ * 차트 툴팁 커스텀 렌더러
+ */
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const queryData = payload[0].payload;
@@ -90,6 +98,10 @@ interface TestQueryViewProps {
   }) => void;
 }
 
+/**
+ * TestQuery 뷰 컴포넌트
+ * @param props 파이프라인, 상태, 메시지, 핸들러 등을 받아 UI를 렌더링합니다.
+ */
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
   pipeline,
   pipelineSet,
@@ -153,7 +165,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             <RefreshCw size={14} />
           </S.ResetButton>
         </S.TestQueryHeader>
-        {}
+
         <ReactFlow
           proOptions={{ hideAttribution: true }}
           nodes={pipelineSet.map((module) => ({

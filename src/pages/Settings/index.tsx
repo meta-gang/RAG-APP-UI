@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+// src/pages/Settings/index.tsx
+import React, { useState, useRef, useEffect } from 'react';
 import { SettingsView } from './SettingsView';
 import { useRecoilValue } from 'recoil';
 import { appLoadingState } from '../../globals/recoil/atoms';
@@ -8,34 +9,60 @@ interface SettingsPageProps {
     setCurrentPage: (page: string) => void;
 }
 
+/**
+ * SettingsPage 컴포넌트
+ *
+ * 기능:
+ * - step 기반 UI 상태 관리
+ * - 업로드('upload') / 서버('server') 모드 선택
+ * - 파일 드래그/파일 입력 처리
+ * - 서버에 저장된 쿼리 목록을 소켓으로 수신하고 선택 가능
+ *
+ * @param setCurrentPage 현재 페이지를 설정하는 콜백
+ */
 export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) => {
+    // 1. UI 상태 관리: Step은 유지하되 로직은 단순화
     const [step, setStep] = useState<number>(1);
+    
+    // 2. 데이터 선택 모드: 'upload'(내 PC 파일) vs 'server'(서버에 저장된 파일)
+    const [inputMode, setInputMode] = useState<'upload' | 'server'>('upload');
+    
     const [files, setFiles] = useState<File[]>([]);
-    const [querySource, setQuerySource] = useState<'manual' | 'llm'>("manual");
-    const [llmOption, setLlmOption] = useState<'new' | 'existing'>("new");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // 기존 질문 목록을 소켓으로 받아와 상태로 관리
-    const [existingQueries, setExistingQueries] = useState<any[]>([]);
+    // 서버에 저장된 쿼리 파일 목록 상태
+    const [serverFiles, setServerFiles] = useState<any[]>([]);
+    const [selectedServerFileId, setSelectedServerFileId] = useState<string>('');
 
-    React.useEffect(() => {
-        // 기존 질문 목록 수신
+    // 3. 소켓 리스너: 서버에 저장된 쿼리 파일 목록 수신
+    useEffect(() => {
+        /**
+         * 서버에서 존재하는 쿼리 목록을 수신하여 state로 설정합니다.
+         * @remarks 소켓 이벤트 이름: 'existing-queries'
+         * @param data 소켓으로 수신한 페이로드
+         */
         const handleExistingQueries = (data: any) => {
-            setExistingQueries(data.queries || []);
+            // 백엔드에서 { topic: 'existing-queries', queries: [...] } 형태로 보낸다고 가정
+            if (data.topic === 'existing-queries') {
+                setServerFiles(data.queries || []);
+                // 목록이 있으면 첫 번째 파일을 기본 선택
+                if (data.queries && data.queries.length > 0) {
+                    setSelectedServerFileId(data.queries[0].id);
+                }
+            }
         };
+        
         socket.on('existing-queries', handleExistingQueries);
-        // 백엔드에 기존 질문 목록 요청
+        // 페이지 진입 시 목록 요청
         socket.send({ topic: 'get-existing-queries' });
+        
         return () => {
             socket.off('existing-queries', handleExistingQueries);
         };
     }, []);
 
-    // --- 2. 로딩 상태 로직 (재준님 코드 - Recoil 연동) ---
-    // 로컬 useState(isRunning, progress)를 제거하고, Recoil 전역 상태를 구독합니다.
+    // 4. 전역 로딩 상태 구독 (App.tsx에서 관리)
     const globalLoadingState = useRecoilValue(appLoadingState);
-
-    // SettingsView가 요구하는 props에 맞게 전역 상태를 매핑합니다.
     const isRunning = globalLoadingState.isLoading;
     const progress = globalLoadingState.totalQueries > 0
         ? Math.floor((globalLoadingState.completedQueries / globalLoadingState.totalQueries) * 100)
@@ -44,108 +71,107 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
         ? `${globalLoadingState.message} (${globalLoadingState.completedQueries}/${globalLoadingState.totalQueries})`
         : globalLoadingState.message;
 
-    // --- 3. 파일 업로드 헬퍼 (문규님 코드) ---
+    /**
+     * 주어진 파일들을 서버로 업로드합니다.
+     * @param files 업로드할 File 배열
+     * @returns 서버에서 반환한 파일명 배열 또는 null(실패 시)
+     */
     const uploadFiles = async (files: File[]) => {
         const formData = new FormData();
         files.forEach(file => formData.append('files', file));
         
         try {
+            // 백엔드 API 엔드포인트 확인 필요 (임시 유지)
             const response = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData
             });
             const result = await response.json();
-            return result.fileNames;
+            return result.fileNames; // 서버에 저장된 파일명 반환
         } catch (error) {
             console.error('File upload failed:', error);
             return null;
         }
     };
 
-    // --- 4. 핸들러 함수들 (공통) ---
+    // --- 핸들러 함수 ---
+    /**
+     * 다음 단계로 이동하거나 마지막 단계일 경우 실행 핸들러를 호출합니다.
+     */
     const handleNextStep = () => {
-        if (step === 3) {
+        if (step === 2) { // 2단계가 마지막 (선택 -> 확인/실행)
             handleRun();
         } else {
             setStep(prev => prev + 1);
         }
     };
 
+    /**
+     * 이전 단계로 이동합니다.
+     */
     const handlePrevStep = () => {
         setStep(prev => prev - 1);
     };
 
+    /**
+     * 파일 입력 변경 이벤트 처리기
+     * @param event 파일 입력 change 이벤트
+     */
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files) {
-        setFiles(Array.from(event.target.files));
+            setFiles(Array.from(event.target.files));
         }
     };
 
+    /**
+     * 드래그 앤 드롭으로 파일을 받는 핸들러
+     * @param event 드롭 이벤트
+     */
     const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         if (event.dataTransfer.files) {
-        setFiles(Array.from(event.dataTransfer.files));
+            setFiles(Array.from(event.dataTransfer.files));
         }
     };
     
+    /**
+     * 업로드 모드에서 드롭존 클릭 시 파일 선택창을 엽니다.
+     */
     const handleDropzoneClick = () => {
-        if (querySource === 'manual') {
+        if (inputMode === 'upload') {
             fileInputRef.current?.click();
         }
     };
     
-    // --- 5. handleRun (핵심 병합) ---
+    /**
+     * 실행 핸들러: 업로드 모드에서는 파일 업로드 후 소켓에 전송,
+     * 서버 모드에서는 선택된 서버 파일 정보를 소켓으로 전송합니다.
+     */
     const handleRun = async () => {
-        // [병합] 문규님의 로컬 상태(setIsRunning 등) 설정 제거
-        // [병합] 문규님의 시뮬레이션(setInterval) 로직 제거
-        // [병합] 문규님의 소켓 전송 로직 (async, socket.send 등)은 유지
+        console.log("Running RAG evaluation:", { inputMode, files, selectedServerFileId });
 
-        console.log("Running RAG evaluation with settings:", {
-            querySource,
-            llmOption,
-            files
-        });
-
-        if (querySource === 'manual' && files.length > 0) {
-            // 파일 업로드 케이스 (문규님 코드)
+        if (inputMode === 'upload' && files.length > 0) {
+            // Case A: 직접 파일 업로드
             const uploadedFiles = await uploadFiles(files);
             if (uploadedFiles) {
-                // [정우님 명세서]와 형식이 다릅니다. 문규님이 만든 sendFileQuery를 사용합니다.
                 socket.sendFileQuery(uploadedFiles);
             }
-        } else if (querySource === 'llm') {
-            // LLM 쿼리 생성 케이스 (문규님 코드)
-            const selectedModel = document.getElementById('llm-select') as HTMLSelectElement;
-            const selectedQueryId = document.getElementById('existing-query-select') as HTMLSelectElement;
-            
-            if (llmOption === 'new') {
-                // 새 질문 생성의 경우
-                // [정우님 명세서]에 맞게 수정 (file_path, llm_model)
+        } else if (inputMode === 'server') {
+            // Case B: 서버 파일 선택
+            const selectedFile = serverFiles.find(f => f.id === selectedServerFileId);
+            if (selectedFile) {
+                // 기존 LLMQuery 메시지 포맷 재활용 (설정값은 단순화)
+                // 백엔드 명세에 따라 'made-query' 옵션 사용
                 socket.sendLLMQuery({
-                    llm_option: 'make-query',
-                    file_path: '',  // 새 질문 생성 시 back에 보낼 파일 경로는 공란
-                    llm_model: selectedModel?.value || ''  // 선택된 LLM 모델
-                });
-            } else {
-                // 기존 질문 사용의 경우
-                // [정우님 명세서]에 맞게 수정 (file_path, llm_model)
-                // 기존 질문 목록을 state에서 사용
-                const selectedQueryData = existingQueries.find(q => q.id === selectedQueryId?.value);
-                const filePath = selectedQueryData ? selectedQueryData.file_path || './data/default.txt' : './data/default.txt';
-
-                socket.sendLLMQuery({
-                    llm_option: 'made-query',
-                    file_path: filePath, // 선택된 질문이 있는 파일 경로
-                    llm_model: "" // [정우님 명세서] 기존 질문 사용 시 모델 비움
+                    llm_option: 'made-query', // "기존 파일 사용" 의미
+                    file_path: selectedFile.filePath || selectedFile.file_path || './data/default.json', // 경로
+                    llm_model: "" // 모델 설정 불필요
                 });
             }
         }
-
-        // [병합] 문규님의 '프로그레스 바 시뮬레이션' (setInterval) 로직 전체 제거
-        // 이 역할은 App.tsx의 전역 핸들러가 대신합니다.
+        // * 참고: 실제 로딩 UI 처리는 App.tsx의 소켓 리스너가 담당함
     };
 
-    // --- 6. View 반환 (재준님 코드 - Recoil 연동) ---
     return (
         <SettingsView
             step={step}
@@ -155,16 +181,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ setCurrentPage }) =>
             handleNextStep={handleNextStep}
             handlePrevStep={handlePrevStep}
             files={files}
-            querySource={querySource}
-            llmOption={llmOption}
+            inputMode={inputMode}
+            setInputMode={setInputMode}
             fileInputRef={fileInputRef}
-            existingQueries={existingQueries}
+            serverFiles={serverFiles}
+            selectedServerFileId={selectedServerFileId}
+            setSelectedServerFileId={setSelectedServerFileId}
             handleFileChange={handleFileChange}
             handleFileDrop={handleFileDrop}
-            setQuerySource={setQuerySource}
-            setLlmOption={setLlmOption}
-            handleRun={handleRun}
             handleDropzoneClick={handleDropzoneClick}
+            handleRun={handleRun}
         />
     );
 };

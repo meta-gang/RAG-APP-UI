@@ -1,4 +1,9 @@
-// src/components/ProgressBar/index.tsx
+/**
+ * 진행률 바 컴포넌트
+ * @param progress 0-100 숫자
+ * @param message 진행 메시지
+ */
+
 import React from 'react';
 import * as S from './ProgressBar.styled';
 
