@@ -124,7 +124,6 @@ export const TestQueryPage: React.FC = () => {
       const moduleIndex = modulesByLevel[level].indexOf(module);
       const totalModulesInLevel = modulesByLevel[level].length;
       const spacing = 350;
-
       const levelWidth = (totalModulesInLevel - 1) * spacing;
       const startX = -levelWidth / 2;
 
@@ -142,6 +141,9 @@ export const TestQueryPage: React.FC = () => {
 
   const [tqState, setTqState] = useRecoilState(testQueryState);
 
+  /**
+   * 파이프라인의 초기 상태 맵을 생성합니다.
+   */
   const initialStatuses = useMemo(() => pipeline.reduce(
     (acc, moduleName) => {
       acc[moduleName] = 'pending';
@@ -150,6 +152,9 @@ export const TestQueryPage: React.FC = () => {
     {} as Record<string, ModuleStatus>,
   ), [pipeline]);
 
+  /**
+   * Recoil 상태가 비어있을 경우 초기 상태로 설정합니다.
+   */
   useEffect(() => {
     if (Object.keys(tqState.moduleStatuses).length === 0) {
       setTqState((prev) => ({ ...prev, moduleStatuses: initialStatuses }));
@@ -260,7 +265,7 @@ export const TestQueryPage: React.FC = () => {
   };
 
   /**
-   * 상태 초기화
+   * 상태 초기화 핸들러
    */
   const handleReset = () => {
     setTqState({
@@ -273,7 +278,7 @@ export const TestQueryPage: React.FC = () => {
   };
 
   /**
-   * 파일 업로드로 쿼리 실행
+   * 파일 업로드로 쿼리 실행 핸들러
    * @param files - 업로드된 파일 경로 배열
    */
   const handleFileUpload = (files: string[]) => {
@@ -284,7 +289,7 @@ export const TestQueryPage: React.FC = () => {
     };
 
   /**
-   * LLM 기반 쿼리 실행 트리거
+   * LLM 기반 쿼리 실행 트리거 핸들러
    * @param settings - { llm_option, llm_model, query_id }
    */
     const handleLLMQuery = (settings: {
