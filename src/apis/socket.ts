@@ -10,7 +10,7 @@ class SocketClient {
   private handlers: Record<string, ((data: any) => void)[]> = {};
 
   constructor() {
-    this.url = 'ws://localhost:8000/ws';  // 실제 백엔드 WebSocket 서버 주소로 변경 필요
+    this.url = 'ws://localhost:8081/ws';  // 실제 백엔드 WebSocket 서버 주소로 변경 필요
   }
 
   connect() {
