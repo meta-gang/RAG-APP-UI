@@ -1,17 +1,13 @@
 // src/App.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { Header } from '@components/Header';
 import { DashboardPage } from './pages/Dashboard';
 import { TestQueryPage } from './pages/TestQuery';
 import { SettingsPage } from './pages/Settings';
 import { GlobalStyle } from '@styles/GlobalStyle';
 
-/**
- * 전역 상태/소켓 관련 임포트 및 유틸
- * - 전역 로딩 상태, 대시보드 결과 업데이트를 위한 Recoil setter 사용
- * - 소켓 메시지 수신으로 앱 로딩 상태 및 대시보드 결과를 갱신
- */
 import { useSetRecoilState } from 'recoil';
 import { appLoadingState, AppLoadingState, dashboardResultState } from '@recoil/atoms';
 import { LoadingModal } from '@components/LoadingModal';
@@ -31,27 +27,24 @@ const MainContent = styled.main`
 /**
  * App 루트 컴포넌트
  *
- * 전역 소켓 연결을 설정하고 rag 관련 토픽에 대한 리스너를 등록하여
- * 전역 로딩 상태 및 대시보드 결과를 Recoil 상태로 업데이트합니다.
+ * 전역 레이아웃(헤더, 로딩 모달)을 렌더링하고 React Router를 이용한 라우팅을 관리합니다.
+ * 또한 전역 소켓 이벤트 리스너를 등록하여 앱 전반의 상태 및 페이지 이동을 제어합니다.
  */
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState("dashboard");
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // --- 🔽 [신규] Step 3 코드 ---
-  // Recoil 상태 Setter
   const setAppLoading = useSetRecoilState(appLoadingState);
   const setDashboardResult = useSetRecoilState(dashboardResultState);
 
+  const currentPath = location.pathname.replace('/', '') || 'dashboard';
+
   /**
-   * 컴포넌트 마운트 시 소켓 연결 및 이벤트 리스너 등록
-   * - rag-on: 실행 시작 처리
-   * - ended-query: 진행률 업데이트
-   * - rag-result-data: 최종 결과 수신 및 변환
-   * - error: 백엔드 에러 처리
+   * 컴포넌트 마운트 시 소켓을 연결하고 전역 이벤트 리스너를 등록합니다.
    */
   useEffect(() => {
-    // 소켓 연결 및 구독
     socket.connect();
+    
     const topicsToSubscribe = [
       'rag-on',
       'ended-query',
@@ -64,8 +57,8 @@ const App: React.FC = () => {
     socket.subscribe(topicsToSubscribe);
 
     /**
-     * rag-on 이벤트 핸들러
-     * @param data { topic, ts, 'query-num' }
+     * RAG 실행 시작 이벤트(rag-on) 핸들러
+     * 로딩 모달을 활성화하고 전체 쿼리 수를 설정합니다.
      */
     const handleRagOn = (data: { topic: 'rag-on'; ts: number; 'query-num': number }) => {
       console.log('Socket RECV: rag-on', data);
@@ -78,8 +71,8 @@ const App: React.FC = () => {
     };
 
     /**
-     * ended-query 이벤트 핸들러
-     * @param data { topic, ts, 'end-query' }
+     * 개별 쿼리 완료 이벤트(ended-query) 핸들러
+     * 진행률(완료된 쿼리 수)을 업데이트합니다.
      */
     const handleEndedQuery = (data: { topic: 'ended-query'; ts: number; 'end-query': string }) => {
       console.log('Socket RECV: ended-query (완료된 쿼리 ID):', data['end-query']);
@@ -91,27 +84,30 @@ const App: React.FC = () => {
     };
 
     /**
-     * rag-result-data 이벤트 핸들러
-     * @param data 백엔드에서 전달된 결과 페이로드
+     * 최종 결과 수신 이벤트(rag-result-data) 핸들러
+     * 수신된 데이터를 변환하여 Recoil에 저장하고 대시보드 페이지로 이동합니다.
      */
     const handleRagResult = (data: any) => {
       console.log('Socket RECV: rag-result-data', data);
+      
       if (data.storage) {
         const newRun: EvaluationRun = transformData(data.storage);
         setDashboardResult(() => [newRun]);
       }
+      
       setAppLoading({
         isLoading: false,
         message: '평가 완료!',
         totalQueries: 0,
         completedQueries: 0,
       });
-      setCurrentPage('dashboard');
+
+      navigate('/dashboard');
     };
 
     /**
-     * error 이벤트 핸들러
-     * @param data 오류 페이로드
+     * 에러 이벤트 핸들러
+     * 에러 발생 시 알림을 표시하고 로딩 상태를 해제합니다.
      */
     const handleError = (data: { topic: 'error'; message: string; [key: string]: any }) => {
       console.error('Socket RECV: error', data);
@@ -119,7 +115,6 @@ const App: React.FC = () => {
       setAppLoading((prev) => ({ ...prev, isLoading: false }));
     };
 
-    // 리스너 등록
     socket.on('rag-on', handleRagOn);
     socket.on('ended-query', handleEndedQuery);
     socket.on('rag-result-data', handleRagResult);
@@ -131,31 +126,26 @@ const App: React.FC = () => {
       socket.off('rag-result-data', handleRagResult);
       socket.off('error', handleError);
     };
-  }, [setAppLoading, setDashboardResult, setCurrentPage]);
-  // --- 🔼 [신규] Step 3 코드 ---
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case "dashboard":
-        return <DashboardPage />;
-      case "test":
-        return <TestQueryPage />;
-      case "settings":
-        return <SettingsPage setCurrentPage={setCurrentPage} />;
-      default:
-        return <DashboardPage />;
-    }
-  };
+  }, [setAppLoading, setDashboardResult, navigate]);
 
   return (
     <>
       <GlobalStyle />
-      {/* 로딩 모달: 전역 isLoading 상태에 따라 표시됩니다. */}
       <LoadingModal /> 
       
       <AppContainer>
-        <Header currentPage={currentPage} setCurrentPage={setCurrentPage} />
-        <MainContent>{renderPage()}</MainContent>
+        <Header 
+          currentPage={currentPath} 
+          setCurrentPage={(page) => navigate(`/${page}`)} 
+        />
+        <MainContent>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/test" element={<TestQueryPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </MainContent>
       </AppContainer>
     </>
   );
