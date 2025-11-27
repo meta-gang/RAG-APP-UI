@@ -90,11 +90,7 @@ class SocketClient {
     });
   }
 
-  sendLLMQuery(settings: {
-    llm_option: 'make-query' | 'made-query',
-    file_path: string,
-    llm_model: string
-  }) {
+  sendLLMQuery(settings: {file_name: string}) {
     this.send({
       topic: 'run-rag-llm-query',
       settings: settings

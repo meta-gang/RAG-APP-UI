@@ -123,10 +123,10 @@ export const SettingsPage: React.FC = () => {
         } else if (inputMode === 'server') {
             const selectedFile = serverFiles.find(f => f.id === selectedServerFileId);
             if (selectedFile) {
+                const targetFileName = selectedFile.fileName || selectedFile.id || 'default.txt';
+                
                 socket.sendLLMQuery({
-                    llm_option: 'made-query',
-                    file_path: selectedFile.filePath || selectedFile.file_path || './data/default.json',
-                    llm_model: ""
+                    file_name: targetFileName
                 });
             }
         }
