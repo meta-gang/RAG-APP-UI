@@ -24,7 +24,6 @@ export const SettingsPage: React.FC = () => {
      * 페이지 진입 시 소켓 연결 및 파일 목록 수신 핸들러 등록
      */
     useEffect(() => {
-        socket.connect();
         
         const handleGeneratedQueryFiles = (data: any) => {
             if (data.topic === 'generated-query-files' && data.files) {

@@ -34,7 +34,7 @@ interface DashboardViewProps {
 
 /**
  * DashboardView 컴포넌트
- * @param props 화면 렌더링에 필요한 KPI, 차트 데이터, 핸들러들을 포함
+ * 대시보드의 프레젠테이션 레이어로 KPI 카드, 차트, 메트릭 분포 등을 렌더링합니다.
  */
 export const DashboardView: React.FC<DashboardViewProps> = ({
     kpiData, zoomedMetric, selectedDate, selectedModule, zoomedFrequencyData,
@@ -44,7 +44,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   return (
     <S.DashboardContainer>
-      {/* KPI 카드 및 차트 영역 */}
       <S.KpiCardWrapper>
         <Swiper
           modules={[Navigation]}
@@ -71,7 +70,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </S.KpiCardWrapper>
 
       <S.GridContainer>
-        {/* 메인 라인 차트 */}
         <S.MainChartWrapper>
           <S.ChartBox>
             <S.BoxTitle>RAG Performance Change</S.BoxTitle>
@@ -80,7 +78,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <LineChart data={modulePerformanceData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                         <XAxis dataKey="date" stroke="#9CA3AF" />
-                        <YAxis stroke="#9CA3AF" domain={[60, 100]} />
+                        <YAxis stroke="#9CA3AF" domain={[0, 100]} />
                         <Tooltip contentStyle={{ backgroundColor: "#1F2937", borderColor: "#4B5563" }} />
                         <Legend />
                         {allModuleNames.map((moduleName, index) => (
@@ -97,7 +95,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </S.ChartBox>
         </S.MainChartWrapper>
         
-        {/* 사이드 패널: 메트릭별 분포 */}
         <S.SidePanelWrapper>
           <S.ChartBox>
             <S.BoxHeader>
@@ -131,7 +128,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </S.SidePanelWrapper>
       </S.GridContainer>
       
-      {/* 줌인 모달 영역 */}
       <AnimatePresence>
         {zoomedMetric && (
           <S.ModalOverlay onClick={handleZoomOut}>
@@ -170,8 +166,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </ResponsiveContainer>
                     </S.ZoomedChartWrapper>
                     <S.ZoomedQueryWrapper>
-                         <S.BoxTitleH3>Queries in Score Range</S.BoxTitleH3>
-                         <S.ScrollableContent style={{height: '100%'}}>
+                          <S.BoxTitleH3>Queries in Score Range</S.BoxTitleH3>
+                          <S.ScrollableContent style={{height: '100%'}}>
                             <S.QueryInfoText>
                               Showing {detailedQueryData?.length || 0} queries. Range:{" "}
                               {selectedScoreRange ? `${selectedScoreRange[0]}-${selectedScoreRange[1]}` : "All"}
@@ -185,7 +181,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 </S.ScoreWrapper>
                               </S.QueryItem>
                             ))}
-                         </S.ScrollableContent>
+                          </S.ScrollableContent>
                     </S.ZoomedQueryWrapper>
                 </S.ZoomedViewContainer>
               </div>
@@ -194,7 +190,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         )}
       </AnimatePresence>
       
-      {/* 메트릭 퍼포먼스 브레이크다운 */}
       <div>
         <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>Metric Performance Breakdown</S.BoxTitle>
         <S.GridContainer style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))' }}>
@@ -205,7 +200,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <LineChart data={data}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="date" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" />
+                  <YAxis stroke="#9CA3AF" domain={[0, 100]} />
                   <Tooltip contentStyle={{ backgroundColor: "#1F2937", borderColor: "#4B5563" }} />
                   <Legend />
                   {data.length > 0 && Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {}))

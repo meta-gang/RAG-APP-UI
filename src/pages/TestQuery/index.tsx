@@ -1,6 +1,7 @@
-// /src/pages/TestQuery/index.tsx
+// src/pages/TestQuery/index.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRecoilState } from 'recoil';
+import { MarkerType, Node, Edge } from 'reactflow';
 import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { socket } from '../../apis/socket';
@@ -9,281 +10,194 @@ type ModuleStatus = 'pending' | 'loading' | 'completed';
 
 /**
  * TestQueryPage 컴포넌트
- *
- * RAG 파이프라인 정보를 받아 UI 상태를 관리하고 웹소켓 이벤트를 처리합니다.
- * 실시간 쿼리 테스트 및 모듈 흐름 시각화를 담당합니다.
+ * RAG 파이프라인 실시간 테스트 및 시각화
  */
 export const TestQueryPage: React.FC = () => {
   type ModulePair = [string, string];
   const [modulePairs, setModulePairs] = useState<ModulePair[]>([]);
+  const [tqState, setTqState] = useRecoilState(testQueryState);
+
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
 
   /**
-   * 초기 렌더링 시 'rag-container' 토픽을 구독하여 모듈 연결 정보(modulePairs)를 수신합니다.
+   * 소켓 이벤트를 등록하고 정리합니다.
+   * 수신된 토픽에 따라 Recoil 상태와 로컬 상태를 갱신합니다.
    */
   useEffect(() => {
+    socket.subscribe(['rag-container', 'rag-result-data', 'module-statu', 'error']);
+
     const handleModulePairs = (data: any) => {
       if (data.topic === 'rag-container' && Array.isArray(data['rag-container'])) {
+        console.log('[TestQuery] Topology Received:', data['rag-container']);
         setModulePairs(data['rag-container']);
       }
     };
-    
-    socket.on('rag-container', handleModulePairs);
-    // 백엔드에 모듈 구조 요청
-    socket.send({ topic: 'get-module-pairs' });
-    
-    return () => {
-      socket.off('rag-container', handleModulePairs);
-    };
-  }, []);
 
-  /**
-   * modulePairs를 기반으로 BFS를 수행하여 파이프라인 실행 순서를 계산합니다.
-   * @returns {string[]} 모듈 실행 순서 배열
-   */
-  const pipeline = useMemo(() => {
-    const order: string[] = [];
-    const visited = new Set<string>();
-    
-    if (modulePairs.length > 0) {
-      const startNode = modulePairs[0][0];
-      const queue = [startNode];
-      visited.add(startNode);
-      
-      while (queue.length > 0) {
-        const node = queue.shift()!;
-        order.push(node);
-        modulePairs.forEach(([from, to]) => {
-          if (from === node && !visited.has(to)) {
-            visited.add(to);
-            queue.push(to);
-          }
-        });
-      }
-    }
-    return order;
-  }, [modulePairs]);
-
-  /**
-   * 모듈 쌍으로부터 레벨 및 레벨별 모듈 목록을 계산합니다.
-   * 그래프 시각화 시 노드의 Y축 위치를 결정하는 데 사용됩니다.
-   * @param modulePairs - [from,to] 쌍의 배열
-   * @returns 객체 { levels, modulesByLevel }
-   */
-  const calculateModuleLevels = (modulePairs: ModulePair[]) => {
-    const graph: Record<string, string[]> = {};
-    const levels: Record<string, number> = {};
-    const allModules = new Set<string>();
-
-    modulePairs.forEach(([from, to]) => {
-      if (!graph[from]) graph[from] = [];
-      graph[from].push(to);
-      allModules.add(from);
-      allModules.add(to);
-    });
-
-    const startNodes = [modulePairs.length > 0 ? modulePairs[0][0] : ''];
-    const queue: [string, number][] = startNodes[0] ? startNodes.map((node) => [node, 0]) : [];
-    const visited = new Set<string>();
-
-    while (queue.length > 0) {
-      const [current, level] = queue.shift()!;
-      if (visited.has(current)) continue;
-      visited.add(current);
-      levels[current] = level;
-
-      const neighbors = graph[current] || [];
-      for (const neighbor of neighbors) {
-        if (!visited.has(neighbor)) {
-          queue.push([neighbor, level + 1]);
-        }
-      }
-    }
-
-    allModules.forEach((module) => {
-      if (!levels.hasOwnProperty(module)) {
-        levels[module] = 0;
-      }
-    });
-
-    const modulesByLevel: Record<number, string[]> = {};
-    Object.entries(levels).forEach(([module, level]) => {
-      if (!modulesByLevel[level]) modulesByLevel[level] = [];
-      modulesByLevel[level].push(module);
-    });
-    return { levels, modulesByLevel };
-  };
-
-  const { levels, modulesByLevel } = calculateModuleLevels(modulePairs);
-
-  /**
-   * 모듈 위치를 계산합니다 (x,y 좌표).
-   * 레벨별 정렬 간격과 세로 간격을 사용하여 시각적으로 배치합니다.
-   */
-  const modulePositions = Object.entries(levels).reduce(
-    (acc, [module, level]) => {
-      const moduleIndex = modulesByLevel[level].indexOf(module);
-      const totalModulesInLevel = modulesByLevel[level].length;
-      const spacing = 350;
-      const levelWidth = (totalModulesInLevel - 1) * spacing;
-      const startX = -levelWidth / 2;
-
-      acc[module] = {
-        x: startX + moduleIndex * spacing,
-        y: level * 150,
-      };
-      return acc;
-    },
-    {} as Record<string, { x: number; y: number }>,
-  );
-
-  // 그래프에 표시할 고유 모듈 이름 집합
-  const pipelineSet = Array.from(new Set(pipeline));
-
-  const [tqState, setTqState] = useRecoilState(testQueryState);
-
-  /**
-   * 파이프라인의 초기 상태 맵을 생성합니다.
-   */
-  const initialStatuses = useMemo(() => pipeline.reduce(
-    (acc, moduleName) => {
-      acc[moduleName] = 'pending';
-      return acc;
-    },
-    {} as Record<string, ModuleStatus>,
-  ), [pipeline]);
-
-  /**
-   * Recoil 상태가 비어있을 경우 초기 상태로 설정합니다.
-   */
-  useEffect(() => {
-    if (Object.keys(tqState.moduleStatuses).length === 0) {
-      setTqState((prev) => ({ ...prev, moduleStatuses: initialStatuses }));
-    }
-  }, [initialStatuses, setTqState, tqState.moduleStatuses]);
-
-  /**
-   * 웹소켓 연결과 토픽 구독 및 핸들러를 설정합니다.
-   * 컴포넌트 언마운트 시 구독 해제 및 연결 종료를 수행합니다.
-   */
-  useEffect(() => {
-    socket.connect();
-    socket.subscribe(['rag-container', 'rag-result-data', 'module-statu', 'error']);
-    
-    /**
-     * 모듈 상태 업데이트 처리기
-     * @param data - { module: string, statu: string, activeConnections?: any[] }
-     */
     const handleModuleStatus = (data: any) => {
-        if (data.topic === 'module-statu' && data.module && data.statu) {
-          setTqState(prev => ({
-            ...prev,
-            moduleStatuses: {
-            ...prev.moduleStatuses,
-            [data.module]: data.statu
-            }
+      if (data.topic === 'module-statu' && data.module && data.statu) {
+        setTqState((prev) => ({
+          ...prev,
+          moduleStatuses: { ...prev.moduleStatuses, [data.module]: data.statu },
         }));
-
-        if (data.activeConnections) {
-            setTqState(prev => ({
-            ...prev,
-            activeConnections: data.activeConnections
-            }));
-        }
-        }
+      }
     };
 
-    /**
-     * RAG 결과 처리기
-     * @param data - { message?: string, metrics?: any[] }
-     */
     const handleRagResult = (data: any) => {
-      if (data.topic === 'rag-result-data' && data.storage && data.storage.states) {
+      if (data.topic === 'rag-result-data' && data.storage?.states) {
         const states = data.storage.states;
-        const stateKeys = Object.keys(states);
+        const keys = Object.keys(states);
+        if (keys.length === 0) return;
         
-        // 가장 최근의 쿼리 상태를 가져옴 (마지막 키)
-        if (stateKeys.length > 0) {
-            const lastKey = stateKeys[stateKeys.length - 1];
-            const lastState = states[lastKey];
-            
-            // 1. 챗봇 메시지 업데이트 (snapshot의 gen 결과 혹은 query 데이터 사용)
-            // 명세서 구조상 snapshots -> output -> data -> gen 에 최종 답변이 있을 가능성이 높음
-            // 혹은 performances만 올 수도 있으므로 안전하게 처리
-            let botResponse = "Processing completed.";
-            
-            // states 구조 내에서 답변을 찾기 위한 로직 (명세서 기반 추론)
-            if (lastState.snapshots && lastState.snapshots.output && lastState.snapshots.output.length > 0) {
-                 botResponse = lastState.snapshots.output[0].data?.gen || botResponse;
-            } else if (lastState.gen) {
-                 botResponse = lastState.gen;
-            }
+        const lastKey = keys[keys.length - 1];
+        const lastState = states[lastKey];
 
-            // 메시지 중복 방지 (선택사항) 또는 단순히 추가
-            setTqState(prev => ({
-                ...prev,
-                messages: [...prev.messages, { sender: 'bot', text: botResponse }]
-            }));
+        let botResponse = 'Evaluation Completed.';
+        if (lastState.gen) botResponse = lastState.gen;
+        else if (lastState.snapshots?.output?.[0]?.data?.gen) {
+            botResponse = lastState.snapshots.output[0].data.gen;
+        }
 
-            // 2. 메트릭 업데이트
-            // lastState.snapshots 내부를 순회하며 메트릭 수집
-            if (lastState.snapshots) {
-                const newMetrics: any[] = [];
-                Object.entries(lastState.snapshots).forEach(([moduleName, snapshots]: [string, any]) => {
-                    if (Array.isArray(snapshots) && snapshots.length > 0) {
-                        const snapshot = snapshots[0];
-                        if (snapshot.performances) {
-                            const scores = snapshot.performances.map((p: any) => ({
-                                name: p.metric || p._Performance__metric || "Unknown",
-                                score: p.score || p._Performance__score || 0
-                            }));
-                            if (scores.length > 0) {
-                                newMetrics.push({ moduleName, metrics: scores });
-                            }
-                        }
+        setTqState((prev) => ({
+          ...prev,
+          messages: [...prev.messages, { sender: 'bot', text: botResponse }],
+        }));
+
+        if (lastState.snapshots) {
+            const newMetrics: any[] = [];
+            Object.entries(lastState.snapshots).forEach(([moduleName, snapshots]: [string, any]) => {
+                if (Array.isArray(snapshots) && snapshots.length > 0) {
+                    const snap = snapshots[0];
+                    if (snap.performances) {
+                        const scores = snap.performances.map((p: any) => ({
+                            name: p.metric || p._Performance__metric || 'Unknown',
+                            score: p.score || p._Performance__score || 0
+                        }));
+                        if(scores.length > 0) newMetrics.push({ moduleName, metrics: scores });
                     }
-                });
-                 
-                if (newMetrics.length > 0) {
-                     setTqState(prev => ({
-                        ...prev,
-                        metrics: newMetrics // 이전 메트릭을 덮어씌우거나 추가 (...prev.metrics)
-                    }));
                 }
+            });
+
+            if (newMetrics.length > 0) {
+                setTqState(prev => {
+                    const updatedMetrics = prev.metrics.map(m => ({ ...m, metrics: [...m.metrics] }));
+                    const currentQueryNumber = prev.liveMetricsHistory.length + 1;
+                    const newChartData: any = { queryNumber: currentQueryNumber, query: `Query ${currentQueryNumber}` };
+                    
+                    newMetrics.forEach(newM => {
+                        const idx = updatedMetrics.findIndex(m => m.moduleName === newM.moduleName);
+                        if (idx !== -1) updatedMetrics[idx].metrics = [...updatedMetrics[idx].metrics, ...newM.metrics];
+                        else updatedMetrics.push(newM);
+                        
+                        newM.metrics.forEach((m: any) => {
+                            const scoreVal = m.score <= 1 ? m.score * 100 : m.score;
+                            newChartData[m.name] = scoreVal;
+                        });
+                    });
+                    
+                    return {
+                        ...prev,
+                        metrics: updatedMetrics,
+                        liveMetricsHistory: [...prev.liveMetricsHistory, newChartData]
+                    };
+                });
             }
         }
       }
     };
 
-    /**
-     * 에러 처리기
-     * @param data - 에러 정보 객체
-     */
-    const handleError = (data: any) => {
-        console.error('WebSocket error:', data);
-        setTqState(prev => ({
-        ...prev,
-        messages: [...prev.messages, { sender: 'bot', text: `Error: ${data.message}` }]
-        }));
-    };
-
-    // 핸들러 등록
+    socket.on('rag-container', handleModulePairs);
     socket.on('module-statu', handleModuleStatus);
     socket.on('rag-result-data', handleRagResult);
-    socket.on('error', handleError);
 
-    // 컴포넌트 언마운트 시 정리
+    const interval = setInterval(() => {
+        if (modulePairs.length === 0) socket.send({ topic: 'get-module-pairs' });
+    }, 2000);
+
     return () => {
-        socket.off('module-statu', handleModuleStatus);
-        socket.off('rag-result-data', handleRagResult);
-        socket.off('error', handleError);
-        socket.unsubscribe(['rag-container', 'rag-result-data', 'module-statu', 'error']);
-        // socket.disconnect(); // 필요에 따라 주석 해제
+      socket.off('rag-container', handleModulePairs);
+      socket.off('module-statu', handleModuleStatus);
+      socket.off('rag-result-data', handleRagResult);
+      clearInterval(interval);
     };
-  }, [setTqState]);
+  }, [modulePairs.length, setTqState]);
 
   /**
-   * 사용자 쿼리 폼 전송 핸들러
-   * @param e - 폼 이벤트
+   * modulePairs와 moduleStatuses를 기반으로 그래프 레이아웃(노드/엣지)을 계산하여 상태로 설정합니다.
+   */
+  useEffect(() => {
+    if (modulePairs.length === 0) return;
+
+    const graph: Record<string, string[]> = {};
+    const allModules = new Set<string>();
+    modulePairs.forEach(([from, to]) => {
+        if (!graph[from]) graph[from] = [];
+        graph[from].push(to);
+        allModules.add(from);
+        allModules.add(to);
+    });
+
+    const levels: Record<string, number> = {};
+    const queue: { id: string; level: number }[] = [];
+    
+    const targets = new Set(modulePairs.map(p => p[1]));
+    const starts = Array.from(allModules).filter(m => !targets.has(m));
+    if (starts.length === 0 && allModules.size > 0) starts.push(Array.from(allModules)[0]);
+    starts.forEach(id => queue.push({ id, level: 0 }));
+
+    while(queue.length > 0) {
+        const { id, level } = queue.shift()!;
+        if (levels[id] !== undefined) continue;
+        levels[id] = level;
+        (graph[id] || []).forEach(next => queue.push({ id: next, level: level + 1 }));
+    }
+    allModules.forEach(m => { if (levels[m] === undefined) levels[m] = 0; });
+
+    const newNodes: Node[] = Array.from(allModules).map(mod => {
+        const level = levels[mod];
+        const xOffset = (mod.charCodeAt(0) % 2) * 50; 
+        return {
+            id: mod,
+            type: 'moduleNode',
+            position: { x: xOffset, y: level * 150 },
+            data: { 
+                label: mod, 
+                status: tqState.moduleStatuses[mod] || 'pending' 
+            },
+            draggable: false
+        };
+    });
+
+    const newEdges: Edge[] = modulePairs.map(([source, target]) => {
+        const isLoop = (levels[target] || 0) <= (levels[source] || 0);
+        return {
+            id: `${source}-${target}`,
+            source,
+            target,
+            type: isLoop ? 'default' : 'smoothstep',
+            animated: false,
+            markerEnd: { 
+                type: MarkerType.ArrowClosed, 
+                color: isLoop ? '#f87171' : '#9ca3af' 
+            },
+            style: { 
+                stroke: isLoop ? '#f87171' : '#9ca3af', 
+                strokeWidth: 2,
+                strokeDasharray: isLoop ? '5,5' : undefined 
+            },
+            zIndex: isLoop ? 10 : 0,
+            label: isLoop ? 'Loop' : undefined,
+            labelStyle: { fill: '#f87171', fontWeight: 700 }
+        };
+    });
+
+    setNodes(newNodes);
+    setEdges(newEdges);
+
+  }, [modulePairs, tqState.moduleStatuses]);
+
+  /**
+   * 사용자가 전송한 쿼리를 처리하고 소켓으로 전송합니다.
    */
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -291,73 +205,36 @@ export const TestQueryPage: React.FC = () => {
     const query = input.value;
     if (!query) return;
 
-    setTqState((prev) => ({
+    setTqState(prev => ({
       ...prev,
       messages: [...prev.messages, { sender: 'user', text: query }],
-      metrics: [],
-      moduleStatuses: initialStatuses,
-      activeConnections: [],
+      moduleStatuses: {},
+      activeConnections: []
     }));
-
-    // WebSocket으로 쿼리 전송
-    socket.send({
-        topic: 'test-query',
-        query: query
-    });
+    socket.send({ topic: 'test-query', query });
     input.value = '';
   };
 
   /**
-   * 상태 초기화 핸들러
+   * 뷰 상태를 초기화합니다.
    */
   const handleReset = () => {
-    setTqState({
-      messages: [],
-      metrics: [],
-      moduleStatuses: initialStatuses,
-      liveMetricsHistory: [],
-      activeConnections: [],
-    });
+    setTqState({ messages: [], metrics: [], moduleStatuses: {}, liveMetricsHistory: [], activeConnections: [] });
   };
 
-  /**
-   * 파일 업로드로 쿼리 실행 핸들러
-   * @param files - 업로드된 파일 경로 배열
-   */
-  const handleFileUpload = (files: string[]) => {
-        socket.send({
-            topic: 'run-rag-file-query',
-            files: files
-        });
-    };
-
-  /**
-   * LLM 기반 쿼리 실행 트리거 핸들러
-   * @param settings - { llm_option, llm_model, query_id }
-   */
-    const handleLLMQuery = (settings: {
-        llm_option: 'make-query' | 'made-query',
-        llm_model: string,
-        query_id: string
-    }) => {
-        socket.send({
-            topic: 'run-rag-llm-query',
-            settings: settings
-        });
-    };
+  const handleFileUpload = (files: string[]) => socket.send({ topic: 'run-rag-file-query', files });
+  const handleLLMQuery = (s: any) => socket.send({ topic: 'run-rag-llm-query', settings: s });
 
   return (
     <TestQueryView
-      pipeline={pipeline}
-      pipelineSet={pipelineSet}
-      modulePairs={modulePairs}
-      modulePositions={modulePositions}
-      activeConnections={tqState.activeConnections}
-      moduleStatuses={tqState.moduleStatuses}
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={() => {}} 
+      onEdgesChange={() => {}}
       messages={tqState.messages}
       handleSendMessage={handleSendMessage}
       handleFileUpload={handleFileUpload}
-      handleLLMQuery={handleLLMQuery} 
+      handleLLMQuery={handleLLMQuery}
       metrics={tqState.metrics}
       liveMetricsHistory={tqState.liveMetricsHistory}
       handleReset={handleReset}

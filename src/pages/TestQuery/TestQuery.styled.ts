@@ -31,10 +31,18 @@ export const Panel = styled.div`
  * 흐름 패널(ReactFlow)
  */
 export const FlowPanel = styled(Panel)`
+  height: 400px; 
+  min-height: 400px;
+
   @media (min-width: 1024px) {
     grid-column: 1 / 4;
     grid-row: 1 / 2;
-    height: 600px;
+    height: 600px; 
+  }
+  
+  & > div.react-flow {
+      width: 100%;
+      height: 100%;
   }
 `;
 

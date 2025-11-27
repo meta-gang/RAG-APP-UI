@@ -1,330 +1,403 @@
+// src/pages/Dashboard/index.tsx
 import React, { useState, useMemo, useEffect } from 'react';
-import { QueryEvaluation } from '../../globals/types';
-import { DashboardView } from './DashboardView';
-import { CHART_COLORS } from '@styles/color';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
-import { dashboardResultState, appLoadingState } from '../../globals/recoil/atoms';
+import { dashboardResultState, appLoadingState, AppLoadingState } from '../../globals/recoil/atoms';
 import { socket } from '../../apis/socket';
+import { DashboardView } from './DashboardView';
+import { transformData } from './transformData';
+import { CHART_COLORS } from '../../globals/styles/color';
+import { QueryEvaluation } from '../../globals/types';
 
 /**
- * 차트 데이터 압축 함수
- * - 연속적으로 데이터가 없는 구간을 요약(ellipsis)하여 출력함
- * @param data 원본 데이터 배열
- * @param allModuleNames 모든 모듈 이름 배열(ellipsis 항목에 키를 맞추기 위함)
- * @param keyCheck 항목에 실제 데이터가 있는지 판별하는 콜백
+ * 연속적으로 데이터가 없는 구간을 요약하여 차트 데이터 배열을 압축합니다.
+ *
+ * @param data - 원본 차트 데이터
+ * @param allModuleNames - 모든 모듈 이름
+ * @param keyCheck - 데이터 존재 여부 판별 콜백
  * @returns 압축된 데이터 배열
  */
 const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (item: any) => boolean) => {
-    const compressedData = [];
-    let consecutiveNulls = 0;
-    for (let i = 0; i < data.length; i++) {
-        if (keyCheck(data[i])) {
-            if (consecutiveNulls > 2) {
-                const ellipsisEntry: any = { date: `... (${consecutiveNulls} omitted)` };
-                allModuleNames.forEach(name => { ellipsisEntry[name] = null; });
-                compressedData.push(ellipsisEntry);
-            }
-            compressedData.push(data[i]);
-            consecutiveNulls = 0;
-        } else {
-            if (consecutiveNulls < 3 && i > 0 && keyCheck(data[i - 1])) {
-                compressedData.push(data[i]);
-            }
-            consecutiveNulls++;
-        }
+  const compressedData = [];
+  let consecutiveNulls = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (keyCheck(data[i])) {
+      if (consecutiveNulls > 2) {
+        const ellipsisEntry: any = { date: `... (${consecutiveNulls} omitted)` };
+        allModuleNames.forEach((name) => {
+          ellipsisEntry[name] = null;
+        });
+        compressedData.push(ellipsisEntry);
+      }
+      compressedData.push(data[i]);
+      consecutiveNulls = 0;
+    } else {
+      if (consecutiveNulls < 3 && i > 0 && keyCheck(data[i - 1])) {
+        compressedData.push(data[i]);
+      }
+      consecutiveNulls++;
     }
-    return compressedData;
+  }
+  return compressedData;
 };
 
+/**
+ * DashboardPage 컴포넌트
+ */
 export const DashboardPage: React.FC = () => {
-    const evaluationRuns = useRecoilValue(dashboardResultState);
-    const setDashboardResult = useSetRecoilState(dashboardResultState);
-    const setAppLoading = useSetRecoilState(appLoadingState);
-    const [selectedDate, setSelectedDate] = useState<string>(
-        evaluationRuns.length > 0 && evaluationRuns[evaluationRuns.length - 1].date
-            ? evaluationRuns[evaluationRuns.length - 1].date
-            : ''
-    );
-    const [selectedModule, setSelectedModule] = useState<string>(
-        evaluationRuns.length > 0 && evaluationRuns[evaluationRuns.length - 1].modules && evaluationRuns[evaluationRuns.length - 1].modules.length > 0
-            ? evaluationRuns[evaluationRuns.length - 1].modules[0].moduleName
-            : ''
-    );
-    const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
-    const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
-    
-    /**
-     * 초기 마운트 시 백엔드에 히스토리 요청을 전송하고 응답을 처리합니다.
-     * - 응답 대기 타임아웃 처리 포함
-     */
-    useEffect(() => {
-        // 기존 데이터가 있으면 메시지 전송 & 로딩화면 절차 실행하지 않음
-        if (evaluationRuns.length > 0) return;
+  const evaluationRuns = useRecoilValue(dashboardResultState);
+  const setDashboardResult = useSetRecoilState(dashboardResultState);
+  const setAppLoading = useSetRecoilState(appLoadingState);
 
-        
-        setAppLoading({
-            isLoading: true,
-            message: 'Initializing...',
-            totalQueries: 0,
-            completedQueries: 0,
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedModule, setSelectedModule] = useState<string>('');
+  const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
+  const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  useEffect(() => {
+    if (evaluationRuns.length > 0) {
+      const lastRun = evaluationRuns[evaluationRuns.length - 1];
+      if (!selectedDate) setSelectedDate(lastRun.date);
+      if (!selectedModule && lastRun.modules.length > 0) setSelectedModule(lastRun.modules[0].moduleName);
+      setIsDataLoaded(true);
+    }
+  }, [evaluationRuns, selectedDate, selectedModule]);
+
+  /**
+   * 소켓으로부터 history 데이터를 수신하여 파싱하고 Recoil 상태로 저장합니다.
+   */
+  useEffect(() => {
+    const handleDashboardHistory = (data: any) => {
+      console.log('🔥 [Dashboard] Raw Data Received:', data);
+
+      if (data.topic !== 'history') {
+        console.warn('⚠️ [Dashboard] Received data but topic is not history:', data.topic);
+        return;
+      }
+
+      if (!data.history) {
+        console.error('❌ [Dashboard] Payload missing "history" field:', data);
+        return;
+      }
+
+      console.log('✅ [Dashboard] Processing history data...', data.history);
+
+      try {
+        const historyData = data.history;
+        const parsedRuns: any[] = [];
+
+        Object.keys(historyData).forEach((timestampKey) => {
+          const states = historyData[timestampKey];
+          const simulatedStorageData = {
+            ts: timestampKey,
+            states: states,
+          };
+          const run = transformData(simulatedStorageData);
+          parsedRuns.push(run);
         });
-        
-        socket.connect();
-        socket.send({ topic: 'start!', flow_id: 12 });
 
-        const timeoutId = setTimeout(() => {
-            setAppLoading((prev) => {
-                // 로딩 중이라면 에러 메시지 띄우고 끄기
-                if (prev.isLoading) {
-                    alert("서버 응답이 없습니다. 백엔드 연결을 확인해주세요.");
-                    return { ...prev, isLoading: false };
-                }
-                return prev;
-            });
-        }, 5000);
+        parsedRuns.sort((a, b) => (a.date > b.date ? 1 : -1));
+        setDashboardResult(parsedRuns);
 
-        // history 응답 핸들러
-        const handleDashboardHistory = (data: any) => {
-            clearTimeout(timeoutId);
-            
-            // 명세서: data.history 가 { "timestamp": { ...QueryStates } } 형태임
-            if (data.topic === 'history' && data.history) {
-                const historyData = data.history;
-                const parsedRuns: any[] = []; // EvaluationRun[] 타입
-
-                // 1. 타임스탬프(날짜)별로 순회
-                Object.keys(historyData).forEach(timestampKey => {
-                    // 2. 해당 타임스탬프의 쿼리 상태들 (states)
-                    const states = historyData[timestampKey];
-                    
-                    // 3. transformData 함수 재사용을 위해 구조를 맞춤
-                    // transformData는 { ts: string, states: object } 형태를 기대하도록 만들었음(이전 답변 참고)
-                    const simulatedStorageData = {
-                        ts: timestampKey, // "20250915-13:27" 형태 예상
-                        states: states
-                    };
-
-                    // transformData 함수를 호출하여 EvaluationRun 객체로 변환
-                    const run = require('./transformData').transformData(simulatedStorageData);
-                    parsedRuns.push(run);
-                });
-
-                // 날짜순 정렬 (필요시)
-                parsedRuns.sort((a, b) => (a.date > b.date ? 1 : -1));
-
-                setDashboardResult(parsedRuns);
-                
-                // 로딩 해제 및 초기 선택값 설정
-                setAppLoading({
-                    isLoading: false,
-                    message: '',
-                    totalQueries: 0,
-                    completedQueries: 0,
-                });
-
-                if (parsedRuns.length > 0) {
-                    const lastRun = parsedRuns[parsedRuns.length - 1];
-                    setSelectedDate(lastRun.date);
-                    if (lastRun.modules.length > 0) {
-                        setSelectedModule(lastRun.modules[0].moduleName);
-                    }
-                }
-            }
-        };
-        socket.on('history', handleDashboardHistory);
-
-        return () => {
-            clearTimeout(timeoutId);
-            socket.off('history', handleDashboardHistory);
-        };
-    }, [setDashboardResult, setAppLoading, evaluationRuns.length]);
-
-    const allModuleNames = useMemo(() => {
-        const names = new Set<string>();
-        evaluationRuns.forEach(run => { run.modules.forEach(module => names.add(module.moduleName)); });
-        return Array.from(names);
-    }, []);
-    
-    const kpiData = useMemo(() => {
-        if (evaluationRuns.length === 0) return { overallScore: 'N/A', performanceChange: { value: 'N/A', isPositive: true }, worstModule: 'N/A' };
-        const latestRun = evaluationRuns[evaluationRuns.length - 1];
-        let totalScore = 0, metricCount = 0;
-        latestRun.modules.forEach(m => m.queries.forEach(q => q.metrics.forEach(metric => {
-            totalScore += metric.score;
-            metricCount++;
-        })));
-        const overallScore = metricCount > 0 ? `${(totalScore / metricCount * 100).toFixed(1)}%` : '0%';
-        let performanceChange = { value: '+0.0%', isPositive: true };
-        if (evaluationRuns.length > 1) {
-            const previousRun = evaluationRuns[evaluationRuns.length - 2];
-            let prevTotalScore = 0, prevMetricCount = 0;
-            previousRun.modules.forEach(m => m.queries.forEach(q => q.metrics.forEach(metric => {
-                prevTotalScore += metric.score;
-                prevMetricCount++;
-            })));
-            const latestAvg = metricCount > 0 ? totalScore / metricCount : 0;
-            const prevAvg = prevMetricCount > 0 ? prevTotalScore / prevMetricCount : 0;
-            const change = (latestAvg - prevAvg) * 100;
-            performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
-        }
-        let worstModule = 'N/A', minScore = Infinity;
-        latestRun.modules.forEach(module => {
-            if (module.queries.length === 0) return;
-            let moduleTotalScore = 0, moduleMetricCount = 0;
-            module.queries.forEach(q => q.metrics.forEach(m => {
-                moduleTotalScore += m.score;
-                moduleMetricCount++;
-            }));
-            const moduleAvgScore = moduleMetricCount > 0 ? moduleTotalScore / moduleMetricCount : 0;
-            if (moduleAvgScore < minScore) {
-                minScore = moduleAvgScore;
-                worstModule = module.moduleName;
-            }
-        });
-        return { overallScore, performanceChange, worstModule };
-    }, []);
-    
-    const selectedRun = useMemo(() => evaluationRuns.find((run) => run.date === selectedDate), [selectedDate]);
-    const selectedModuleData = useMemo(() => selectedRun?.modules.find((m) => m.moduleName === selectedModule), [selectedRun, selectedModule]);
-
-    /**
-     * 모듈별 평균 성능 데이터를 생성하여 차트에 사용할 형식으로 반환합니다.
-     */
-    const modulePerformanceData = useMemo(() => {
-        const rawData = evaluationRuns.map((run) => {
-            const entry: { date: string; [key: string]: number | string | null } = { date: run.date };
-            let hasData = false;
-            allModuleNames.forEach((moduleName) => {
-                const module = run.modules.find((m) => m.moduleName === moduleName);
-                if (!module || module.queries.length === 0) {
-                    entry[moduleName] = null;
-                } else {
-                    hasData = true;
-                    const avgScore = module.queries.reduce((sum, q) => {
-                        const metricCount = q.metrics.length;
-                        if (metricCount === 0) return sum;
-                        return sum + q.metrics.reduce((s, m) => s + m.score, 0) / metricCount;
-                    }, 0) / module.queries.length;
-                    entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
-                }
-            });
-            return { ...entry, _hasData: hasData };
-        });
-        return compressChartData(rawData, allModuleNames, (item) => item._hasData);
-    }, [allModuleNames]);
-
-    /**
-     * 선택된 모듈의 메트릭 분포 및 상세 조회 데이터 계산
-     */
-    const metricPerformanceBreakdownData = useMemo(() => {
-        const breakdown: { [metricName: string]: any[] } = {};
-        const allMetrics = new Set<string>();
-        evaluationRuns.forEach(r => r.modules.forEach(m => m.queries.forEach(q => q.metrics.forEach(metric => allMetrics.add(metric.name)))));
-        allMetrics.forEach(metricName => {
-            const rawData = evaluationRuns.map(run => {
-                const entry: { date: string, [key: string]: number | string | null } = { date: run.date };
-                let hasData = false;
-                allModuleNames.forEach(moduleName => {
-                    const module = run.modules.find(m => m.moduleName === moduleName);
-                    const scores = module?.queries.map(q => q.metrics.find(m => m.name === metricName)?.score).filter(s => s !== undefined) as number[] || [];
-                    if (scores.length > 0) {
-                        hasData = true;
-                        const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-                        entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
-                    } else {
-                        entry[moduleName] = null;
-                    }
-                });
-                return { ...entry, _hasData: hasData };
-            });
-            breakdown[metricName] = compressChartData(rawData, allModuleNames, (item) => item._hasData);
-        });
-        return breakdown;
-    }, [allModuleNames]);
-
-    const getFrequencyData = (queries: QueryEvaluation[], metricName: string) => {
-        const scores = queries.map((q) => q.metrics.find((m) => m.name === metricName)?.score).filter((s) => s !== undefined).map((s) => s! * 100);
-        const bins = Array.from({ length: 11 }, (_, i) => i * 10);
-        const freqMap = bins.slice(0, -1).map((binStart, i) => {
-            const binEnd = bins[i + 1];
-            const count = scores.filter((s) => s >= binStart && s < binEnd).length;
-            return { range: `${binStart}-${binEnd}`, count };
-        });
-        const lastBin = freqMap[freqMap.length - 1];
-        if (lastBin) {
-            lastBin.count += scores.filter((s) => s === 100).length;
-            lastBin.range = `90-100`;
-        }
-        return freqMap;
-    };
-
-    const metricDistributionData = useMemo(() => {
-        if (!selectedModuleData) return [];
-        const metricNames = selectedModuleData.queries.reduce((acc, q) => {
-            q.metrics.forEach((m) => acc.add(m.name));
-            return acc;
-        }, new Set<string>());
-        return Array.from(metricNames).map((name) => ({
-            metricName: name,
-            data: getFrequencyData(selectedModuleData.queries, name),
+        setAppLoading((prev: AppLoadingState) => ({
+          ...prev,
+          isLoading: false,
+          message: 'Data Loaded',
         }));
-    }, [selectedModuleData]);
-
-    const zoomedFrequencyData = useMemo(() => {
-        if (!selectedModuleData || !zoomedMetric) return [];
-        return getFrequencyData(selectedModuleData.queries, zoomedMetric);
-    }, [selectedModuleData, zoomedMetric]);
-
-    const detailedQueryData = useMemo(() => {
-        if (!selectedModuleData || !zoomedMetric) return [];
-        let queries = selectedModuleData.queries.filter((q) => q.metrics.some((m) => m.name === zoomedMetric));
-        if (selectedScoreRange) {
-            queries = queries.filter((q) => {
-                const score = q.metrics.find((m) => m.name === zoomedMetric)!.score * 100;
-                return score >= selectedScoreRange[0] && score <= (selectedScoreRange[1] === 100 ? 100 : selectedScoreRange[1] - 0.01);
-            });
-        }
-        return queries.map((q) => ({
-            query: q.query,
-            score: q.metrics.find((m) => m.name === zoomedMetric)!.score,
-        })).sort((a, b) => b.score - a.score);
-    }, [selectedModuleData, zoomedMetric, selectedScoreRange]);
-
-    const handleDotClick = (payload: any) => {
-        if (payload && payload.dataKey && payload.payload?.date && !payload.payload.date.startsWith('...')) {
-            setSelectedDate(payload.payload.date);
-            setSelectedModule(payload.dataKey);
-            setZoomedMetric(null);
-        }
+      } catch (error) {
+        console.error('❌ [Dashboard] Data Processing Error:', error);
+      }
     };
-    
-    const handleZoomClick = (metricName: string) => setZoomedMetric(metricName);
-    const handleZoomOut = () => setZoomedMetric(null);
-    const handleFrequencyBarClick = (data: any) => {
-        if (data && data.range) {
-            const [start, end] = data.range.split("-").map(Number);
-            setSelectedScoreRange([start, end]);
-        }
-    };
+    console.log('🚀 [Dashboard] Subscribing to history data...');
+    socket.on('history', handleDashboardHistory);
 
-    return (
-        <DashboardView
-            kpiData={kpiData}
-            zoomedMetric={zoomedMetric}
-            selectedDate={selectedDate}
-            selectedModule={selectedModule}
-            zoomedFrequencyData={zoomedFrequencyData}
-            modulePerformanceData={modulePerformanceData}
-            handleDotClick={handleDotClick}
-            handleFrequencyBarClick={handleFrequencyBarClick}
-            moduleColors={CHART_COLORS}
-            detailedQueryData={detailedQueryData}
-            selectedScoreRange={selectedScoreRange}
-            metricDistributionData={metricDistributionData}
-            handleZoomClick={handleZoomClick}
-            handleZoomOut={handleZoomOut}
-            allModuleNames={allModuleNames}
-            metricPerformanceBreakdownData={metricPerformanceBreakdownData}
-        />
+    console.log('📡 [Dashboard] Subscribing to history topic...');
+    socket.subscribe(['history']);
+
+    if (!isDataLoaded && evaluationRuns.length === 0) {
+      console.log('🚀 [Dashboard] Auto-requesting start!');
+      setTimeout(() => {
+          socket.send({ topic: 'start!', flow_id: 'loop_graph' });
+      }, 100);
+
+      setAppLoading((prev: AppLoadingState) => ({
+        ...prev,
+        isLoading: true,
+        message: 'Fetching History...',
+      }));
+    }
+
+    return () => {
+      socket.off('history', handleDashboardHistory);
+    };
+  }, []);
+
+  const allModuleNames = useMemo(() => {
+    const names = new Set<string>();
+    evaluationRuns.forEach((run) => {
+      run.modules.forEach((module) => names.add(module.moduleName));
+    });
+    return Array.from(names);
+  }, [evaluationRuns]);
+
+  const kpiData = useMemo(() => {
+    if (evaluationRuns.length === 0)
+      return { overallScore: 'N/A', performanceChange: { value: 'N/A', isPositive: true }, worstModule: 'N/A' };
+
+    const latestRun = evaluationRuns[evaluationRuns.length - 1];
+    let totalScore = 0,
+      metricCount = 0;
+
+    latestRun.modules.forEach((m) =>
+      m.queries.forEach((q) =>
+        q.metrics.forEach((metric) => {
+          totalScore += metric.score;
+          metricCount++;
+        })
+      )
     );
+
+    const overallScore = metricCount > 0 ? `${((totalScore / metricCount) * 100).toFixed(1)}%` : '0%';
+
+    let performanceChange = { value: '+0.0%', isPositive: true };
+    if (evaluationRuns.length > 1) {
+      const previousRun = evaluationRuns[evaluationRuns.length - 2];
+      let prevTotalScore = 0,
+        prevMetricCount = 0;
+
+      previousRun.modules.forEach((m) =>
+        m.queries.forEach((q) =>
+          q.metrics.forEach((metric) => {
+            prevTotalScore += metric.score;
+            prevMetricCount++;
+          })
+        )
+      );
+
+      const latestAvg = metricCount > 0 ? totalScore / metricCount : 0;
+      const prevAvg = prevMetricCount > 0 ? prevTotalScore / prevMetricCount : 0;
+      const change = (latestAvg - prevAvg) * 100;
+      performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
+    }
+
+    let worstModule = 'N/A',
+      minScore = Infinity;
+
+    latestRun.modules.forEach((module) => {
+      if (module.queries.length === 0) return;
+      let moduleTotalScore = 0,
+        moduleMetricCount = 0;
+
+      module.queries.forEach((q) =>
+        q.metrics.forEach((m) => {
+          moduleTotalScore += m.score;
+          moduleMetricCount++;
+        })
+      );
+
+      const moduleAvgScore = moduleMetricCount > 0 ? moduleTotalScore / moduleMetricCount : 0;
+      if (moduleAvgScore < minScore) {
+        minScore = moduleAvgScore;
+        worstModule = module.moduleName;
+      }
+    });
+
+    return { overallScore, performanceChange, worstModule };
+  }, [evaluationRuns]);
+
+  const selectedRun = useMemo(
+    () => evaluationRuns.find((run) => run.date === selectedDate),
+    [selectedDate, evaluationRuns]
+  );
+  const selectedModuleData = useMemo(
+    () => selectedRun?.modules.find((m) => m.moduleName === selectedModule),
+    [selectedRun, selectedModule]
+  );
+
+  const modulePerformanceData = useMemo(() => {
+    const rawData = evaluationRuns.map((run) => {
+      const entry: { date: string; [key: string]: number | string | null } = { date: run.date };
+      let hasData = false;
+      allModuleNames.forEach((moduleName) => {
+        const module = run.modules.find((m) => m.moduleName === moduleName);
+        if (!module || module.queries.length === 0) {
+          entry[moduleName] = null;
+        } else {
+          hasData = true;
+          const avgScore =
+            module.queries.reduce((sum, q) => {
+              const metricCount = q.metrics.length;
+              if (metricCount === 0) return sum;
+              return sum + q.metrics.reduce((s, m) => s + m.score, 0) / metricCount;
+            }, 0) / module.queries.length;
+          entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
+        }
+      });
+      return { ...entry, _hasData: hasData };
+    });
+    return compressChartData(rawData, allModuleNames, (item) => item._hasData);
+  }, [allModuleNames, evaluationRuns]);
+
+  const metricPerformanceBreakdownData = useMemo(() => {
+    const breakdown: { [metricName: string]: any[] } = {};
+    const allMetrics = new Set<string>();
+    evaluationRuns.forEach((r) =>
+      r.modules.forEach((m) => m.queries.forEach((q) => q.metrics.forEach((metric) => allMetrics.add(metric.name))))
+    );
+    allMetrics.forEach((metricName) => {
+      const rawData = evaluationRuns.map((run) => {
+        const entry: { date: string; [key: string]: number | string | null } = { date: run.date };
+        let hasData = false;
+        allModuleNames.forEach((moduleName) => {
+          const module = run.modules.find((m) => m.moduleName === moduleName);
+          const scores =
+            (module?.queries
+              .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
+              .filter((s) => s !== undefined) as number[]) || [];
+          if (scores.length > 0) {
+            hasData = true;
+            const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+            entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
+          } else {
+            entry[moduleName] = null;
+          }
+        });
+        return { ...entry, _hasData: hasData };
+      });
+      breakdown[metricName] = compressChartData(rawData, allModuleNames, (item) => item._hasData);
+    });
+    return breakdown;
+  }, [allModuleNames, evaluationRuns]);
+
+  const getFrequencyData = (queries: QueryEvaluation[], metricName: string) => {
+    const scores = queries
+      .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
+      .filter((s) => s !== undefined)
+      .map((s) => s! * 100);
+    const bins = Array.from({ length: 11 }, (_, i) => i * 10);
+    const freqMap = bins.slice(0, -1).map((binStart, i) => {
+      const binEnd = bins[i + 1];
+      const count = scores.filter((s) => s >= binStart && s < binEnd).length;
+      return { range: `${binStart}-${binEnd}`, count };
+    });
+    const lastBin = freqMap[freqMap.length - 1];
+    if (lastBin) {
+      lastBin.count += scores.filter((s) => s === 100).length;
+      lastBin.range = `90-100`;
+    }
+    return freqMap;
+  };
+
+  const metricDistributionData = useMemo(() => {
+    if (!selectedModuleData) return [];
+    const metricNames = selectedModuleData.queries.reduce((acc, q) => {
+      q.metrics.forEach((m) => acc.add(m.name));
+      return acc;
+    }, new Set<string>());
+    return Array.from(metricNames).map((name) => ({
+      metricName: name,
+      data: getFrequencyData(selectedModuleData.queries, name),
+    }));
+  }, [selectedModuleData]);
+
+  const zoomedFrequencyData = useMemo(() => {
+    if (!selectedModuleData || !zoomedMetric) return [];
+    return getFrequencyData(selectedModuleData.queries, zoomedMetric);
+  }, [selectedModuleData, zoomedMetric]);
+
+  const detailedQueryData = useMemo(() => {
+    if (!selectedModuleData || !zoomedMetric) return [];
+    let queries = selectedModuleData.queries.filter((q) => q.metrics.some((m) => m.name === zoomedMetric));
+    if (selectedScoreRange) {
+      queries = queries.filter((q) => {
+        const score = q.metrics.find((m) => m.name === zoomedMetric)!.score * 100;
+        return (
+          score >= selectedScoreRange[0] &&
+          score <= (selectedScoreRange[1] === 100 ? 100 : selectedScoreRange[1] - 0.01)
+        );
+      });
+    }
+    return queries
+      .map((q) => ({
+        query: q.query,
+        score: q.metrics.find((m) => m.name === zoomedMetric)!.score,
+      }))
+      .sort((a, b) => b.score - a.score);
+  }, [selectedModuleData, zoomedMetric, selectedScoreRange]);
+
+  const handleDotClick = (payload: any) => {
+    if (payload && payload.dataKey && payload.payload?.date && !payload.payload.date.startsWith('...')) {
+      setSelectedDate(payload.payload.date);
+      setSelectedModule(payload.dataKey);
+      setZoomedMetric(null);
+    }
+  };
+
+  const handleZoomClick = (metricName: string) => setZoomedMetric(metricName);
+  const handleZoomOut = () => setZoomedMetric(null);
+  const handleFrequencyBarClick = (data: any) => {
+    if (data && data.range) {
+      const [start, end] = data.range.split('-').map(Number);
+      setSelectedScoreRange([start, end]);
+    }
+  };
+
+  const handleRetryFetch = () => {
+    console.log('Manual Retry: Sending start!');
+    socket.send({ topic: 'start!', flow_id: 'loop_graph' });
+  };
+
+  if (evaluationRuns.length === 0 && !isDataLoaded) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          gap: '20px',
+          color: 'white',
+        }}
+      >
+        <h2>데이터를 기다리는 중...</h2>
+        <p>서버와 연결되었으나 데이터가 오지 않는다면 아래 버튼을 눌러보세요.</p>
+        <button
+          onClick={handleRetryFetch}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#4f46e5',
+            color: 'white',
+            border: 'none',
+            borderRadius: '5px',
+            cursor: 'pointer',
+            fontSize: '16px',
+          }}
+        >
+          데이터 수동 요청 (Retry)
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <DashboardView
+      kpiData={kpiData}
+      zoomedMetric={zoomedMetric}
+      selectedDate={selectedDate}
+      selectedModule={selectedModule}
+      zoomedFrequencyData={zoomedFrequencyData}
+      modulePerformanceData={modulePerformanceData}
+      handleDotClick={handleDotClick}
+      handleFrequencyBarClick={handleFrequencyBarClick}
+      moduleColors={CHART_COLORS}
+      detailedQueryData={detailedQueryData}
+      selectedScoreRange={selectedScoreRange}
+      metricDistributionData={metricDistributionData}
+      handleZoomClick={handleZoomClick}
+      handleZoomOut={handleZoomOut}
+      allModuleNames={allModuleNames}
+      metricPerformanceBreakdownData={metricPerformanceBreakdownData}
+    />
+  );
 };
