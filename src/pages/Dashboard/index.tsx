@@ -86,21 +86,49 @@ export const DashboardPage: React.FC = () => {
         // history 응답 핸들러
         const handleDashboardHistory = (data: any) => {
             clearTimeout(timeoutId);
+            
+            // 명세서: data.history 가 { "timestamp": { ...QueryStates } } 형태임
             if (data.topic === 'history' && data.history) {
-                const newRun = require('./transformData').transformData(data.history);
-                setDashboardResult([newRun]);
+                const historyData = data.history;
+                const parsedRuns: any[] = []; // EvaluationRun[] 타입
+
+                // 1. 타임스탬프(날짜)별로 순회
+                Object.keys(historyData).forEach(timestampKey => {
+                    // 2. 해당 타임스탬프의 쿼리 상태들 (states)
+                    const states = historyData[timestampKey];
+                    
+                    // 3. transformData 함수 재사용을 위해 구조를 맞춤
+                    // transformData는 { ts: string, states: object } 형태를 기대하도록 만들었음(이전 답변 참고)
+                    const simulatedStorageData = {
+                        ts: timestampKey, // "20250915-13:27" 형태 예상
+                        states: states
+                    };
+
+                    // transformData 함수를 호출하여 EvaluationRun 객체로 변환
+                    const run = require('./transformData').transformData(simulatedStorageData);
+                    parsedRuns.push(run);
+                });
+
+                // 날짜순 정렬 (필요시)
+                parsedRuns.sort((a, b) => (a.date > b.date ? 1 : -1));
+
+                setDashboardResult(parsedRuns);
+                
+                // 로딩 해제 및 초기 선택값 설정
                 setAppLoading({
                     isLoading: false,
                     message: '',
                     totalQueries: 0,
                     completedQueries: 0,
                 });
-                setSelectedDate(newRun.date ?? '');
-                setSelectedModule(
-                    newRun.modules && newRun.modules.length > 0 && newRun.modules[0].moduleName
-                        ? newRun.modules[0].moduleName
-                        : ''
-                );
+
+                if (parsedRuns.length > 0) {
+                    const lastRun = parsedRuns[parsedRuns.length - 1];
+                    setSelectedDate(lastRun.date);
+                    if (lastRun.modules.length > 0) {
+                        setSelectedModule(lastRun.modules[0].moduleName);
+                    }
+                }
             }
         };
         socket.on('history', handleDashboardHistory);

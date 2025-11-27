@@ -23,7 +23,6 @@ export function transformData(storage: any): EvaluationRun {
   }
 
   const ts = storage.ts;
-  // 정우님 명세서: history 대신 'states' 사용
   const states = storage.states || {}; 
 
   // 1. 날짜 포맷팅
@@ -56,9 +55,8 @@ export function transformData(storage: any): EvaluationRun {
         const moduleSnapshots = snapshotData[moduleName];
         if (!Array.isArray(moduleSnapshots) || moduleSnapshots.length === 0) continue;
         
-        const snapshot = moduleSnapshots[0]; // 첫 번째 스냅샷 사용
+        const snapshot = moduleSnapshots[0];
 
-        // [Private 변수명 대응]
         const rawMetrics = snapshot.performances || [];
         const metrics: QueryEvaluation['metrics'] = rawMetrics.map((p: any) => ({
           name: p.metric || p._Performance__metric || "Unknown",
@@ -77,10 +75,8 @@ export function transformData(storage: any): EvaluationRun {
         modulesMap.get(moduleName)!.queries.push(queryEval);
       }
     }
-
-    // -------------------------------------------------------
-    // 2-2. 'performances' (E2E 메트릭 - 전체 평가) 처리 [이부분이 추가됨]
-    // -------------------------------------------------------
+    
+    // 2-2. 'performances' (E2E 메트릭 - 전체 평가) 처리
     if (queryData?.performances && queryData.performances.length > 0) {
       const e2eModuleName = "E2E-Metrics";
       if (!modulesMap.has(e2eModuleName)) {

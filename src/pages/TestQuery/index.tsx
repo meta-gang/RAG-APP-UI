@@ -171,15 +171,15 @@ export const TestQueryPage: React.FC = () => {
     
     /**
      * 모듈 상태 업데이트 처리기
-     * @param data - { moduleName: string, status: string, activeConnections?: any[] }
+     * @param data - { module: string, statu: string, activeConnections?: any[] }
      */
     const handleModuleStatus = (data: any) => {
-        if (data.moduleName && data.status) {
-        setTqState(prev => ({
+        if (data.topic === 'module-statu' && data.module && data.statu) {
+          setTqState(prev => ({
             ...prev,
             moduleStatuses: {
             ...prev.moduleStatuses,
-            [data.moduleName]: data.status
+            [data.module]: data.statu
             }
         }));
 
@@ -197,18 +197,61 @@ export const TestQueryPage: React.FC = () => {
      * @param data - { message?: string, metrics?: any[] }
      */
     const handleRagResult = (data: any) => {
-        if (data.message) {
-        setTqState(prev => ({
-            ...prev,
-            messages: [...prev.messages, { sender: 'bot', text: data.message }]
-        }));
+      if (data.topic === 'rag-result-data' && data.storage && data.storage.states) {
+        const states = data.storage.states;
+        const stateKeys = Object.keys(states);
+        
+        // 가장 최근의 쿼리 상태를 가져옴 (마지막 키)
+        if (stateKeys.length > 0) {
+            const lastKey = stateKeys[stateKeys.length - 1];
+            const lastState = states[lastKey];
+            
+            // 1. 챗봇 메시지 업데이트 (snapshot의 gen 결과 혹은 query 데이터 사용)
+            // 명세서 구조상 snapshots -> output -> data -> gen 에 최종 답변이 있을 가능성이 높음
+            // 혹은 performances만 올 수도 있으므로 안전하게 처리
+            let botResponse = "Processing completed.";
+            
+            // states 구조 내에서 답변을 찾기 위한 로직 (명세서 기반 추론)
+            if (lastState.snapshots && lastState.snapshots.output && lastState.snapshots.output.length > 0) {
+                 botResponse = lastState.snapshots.output[0].data?.gen || botResponse;
+            } else if (lastState.gen) {
+                 botResponse = lastState.gen;
+            }
+
+            // 메시지 중복 방지 (선택사항) 또는 단순히 추가
+            setTqState(prev => ({
+                ...prev,
+                messages: [...prev.messages, { sender: 'bot', text: botResponse }]
+            }));
+
+            // 2. 메트릭 업데이트
+            // lastState.snapshots 내부를 순회하며 메트릭 수집
+            if (lastState.snapshots) {
+                const newMetrics: any[] = [];
+                Object.entries(lastState.snapshots).forEach(([moduleName, snapshots]: [string, any]) => {
+                    if (Array.isArray(snapshots) && snapshots.length > 0) {
+                        const snapshot = snapshots[0];
+                        if (snapshot.performances) {
+                            const scores = snapshot.performances.map((p: any) => ({
+                                name: p.metric || p._Performance__metric || "Unknown",
+                                score: p.score || p._Performance__score || 0
+                            }));
+                            if (scores.length > 0) {
+                                newMetrics.push({ moduleName, metrics: scores });
+                            }
+                        }
+                    }
+                });
+                 
+                if (newMetrics.length > 0) {
+                     setTqState(prev => ({
+                        ...prev,
+                        metrics: newMetrics // 이전 메트릭을 덮어씌우거나 추가 (...prev.metrics)
+                    }));
+                }
+            }
         }
-        if (data.metrics) {
-        setTqState(prev => ({
-            ...prev,
-            metrics: [...prev.metrics, ...data.metrics]
-        }));
-        }
+      }
     };
 
     /**

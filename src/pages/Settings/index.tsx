@@ -1,8 +1,8 @@
 // src/pages/Settings/index.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SettingsView } from './SettingsView';
-import { useRecoilValue } from 'recoil';
-import { appLoadingState } from '../../globals/recoil/atoms';
+import { useRecoilValue, useSetRecoilState } from 'recoil';
+import { appLoadingState, AppLoadingState } from '../../globals/recoil/atoms';
 import { socket } from '../../apis/socket';
 
 /**
@@ -19,6 +19,7 @@ export const SettingsPage: React.FC = () => {
     const [serverFiles, setServerFiles] = useState<string[]>([]);
     const [selectedFileName, setSelectedFileName] = useState<string>('');
 
+    const setAppLoading = useSetRecoilState(appLoadingState);
     /**
      * 페이지 진입 시 소켓 연결 및 파일 목록 수신 핸들러 등록
      */
@@ -42,15 +43,56 @@ export const SettingsPage: React.FC = () => {
                 }
             }
         };
+
+        const handleRagOn = (data: any) => {
+            if (data.topic === 'rag-on') {
+                setAppLoading(prev => ({
+                    ...prev,
+                    isLoading: true,
+                    message: 'RAG Evaluation Running...',
+                    totalQueries: data['query-num'] || 0,
+                    completedQueries: 0
+                }));
+            }
+        };
+
+        const handleEndedQuery = (data: any) => {
+            if (data.topic === 'ended-query') {
+                setAppLoading((prev: AppLoadingState) => ({
+                    ...prev,
+                    completedQueries: prev.completedQueries + 1
+                }));
+            }
+        };
+
+        const handleRagResultData = (data: any) => {
+             if (data.topic === 'rag-result-data') {
+                setTimeout(() => {
+                    setAppLoading((prev: AppLoadingState) => ({
+                        ...prev,
+                        isLoading: false,
+                        message: 'Completed',
+                        completedQueries: prev.totalQueries 
+                    }));
+                }, 1000);
+             }
+        };
+        socket.subscribe(['generated-query-files', 'custom-query-files', 'rag-on', 'ended-query', 'rag-result-data']);
         
         socket.on('generated-query-files', handleGeneratedQueryFiles);
         socket.on('custom-query-files', handleCustomQueryFiles);
+        socket.on('rag-on', handleRagOn);
+        socket.on('ended-query', handleEndedQuery);
+        socket.on('rag-result-data', handleRagResultData);
         
         return () => {
             socket.off('generated-query-files', handleGeneratedQueryFiles);
             socket.off('custom-query-files', handleCustomQueryFiles);
+            socket.off('rag-on', handleRagOn);
+            socket.off('ended-query', handleEndedQuery);
+            socket.off('rag-result-data', handleRagResultData);
         };
-    }, []);
+    }, [setAppLoading]);
 
     const globalLoadingState = useRecoilValue(appLoadingState);
     const isRunning = globalLoadingState.isLoading;
