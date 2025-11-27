@@ -14,32 +14,41 @@ import { socket } from '../../apis/socket';
 export const SettingsPage: React.FC = () => {
     const [step, setStep] = useState<number>(1);
     
-    const [inputMode, setInputMode] = useState<'upload' | 'server'>('upload');
-    
-    const [files, setFiles] = useState<File[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [inputMode, setInputMode] = useState<'llm-generated' | 'custom'>('llm-generated');
 
-    const [serverFiles, setServerFiles] = useState<any[]>([]);
-    const [selectedServerFileId, setSelectedServerFileId] = useState<string>('');
+    const [serverFiles, setServerFiles] = useState<string[]>([]);
+    const [selectedFileName, setSelectedFileName] = useState<string>('');
 
     /**
-     * 페이지 진입 시 서버에 저장된 쿼리 파일 목록을 요청하고 수신합니다.
+     * 페이지 진입 시 소켓 연결 및 파일 목록 수신 핸들러 등록
      */
     useEffect(() => {
-        const handleExistingQueries = (data: any) => {
-            if (data.topic === 'existing-queries') {
-                setServerFiles(data.queries || []);
-                if (data.queries && data.queries.length > 0) {
-                    setSelectedServerFileId(data.queries[0].id);
+        socket.connect();
+        
+        const handleGeneratedQueryFiles = (data: any) => {
+            if (data.topic === 'generated-query-files' && data.files) {
+                setServerFiles(data.files);
+                if (data.files.length > 0) {
+                    setSelectedFileName(data.files[0]);
                 }
             }
         };
         
-        socket.on('existing-queries', handleExistingQueries);
-        socket.send({ topic: 'get-existing-queries' });
+        const handleCustomQueryFiles = (data: any) => {
+            if (data.topic === 'custom-query-files' && data.files) {
+                setServerFiles(data.files);
+                if (data.files.length > 0) {
+                    setSelectedFileName(data.files[0]);
+                }
+            }
+        };
+        
+        socket.on('generated-query-files', handleGeneratedQueryFiles);
+        socket.on('custom-query-files', handleCustomQueryFiles);
         
         return () => {
-            socket.off('existing-queries', handleExistingQueries);
+            socket.off('generated-query-files', handleGeneratedQueryFiles);
+            socket.off('custom-query-files', handleCustomQueryFiles);
         };
     }, []);
 
@@ -53,32 +62,16 @@ export const SettingsPage: React.FC = () => {
         : globalLoadingState.message;
 
     /**
-     * 선택된 파일들을 백엔드로 업로드합니다.
-     * @param files 업로드할 파일 배열
-     * @returns 서버에 저장된 파일명 배열 또는 null
-     */
-    const uploadFiles = async (files: File[]) => {
-        const formData = new FormData();
-        files.forEach(file => formData.append('files', file));
-        
-        try {
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-            return result.fileNames;
-        } catch (error) {
-            console.error('File upload failed:', error);
-            return null;
-        }
-    };
-
-    /**
      * 다음 단계로 이동하거나 실행을 트리거합니다.
+     * Step 1에서는 선택된 옵션에 따라 백엔드에 메시지를 전송합니다.
      */
     const handleNextStep = () => {
-        if (step === 2) {
+        if (step === 1) {
+            // Step 1: 선택된 옵션에 따라 백엔드에 메시지 전송
+            setServerFiles([]);
+            setSelectedFileName('');
+            setStep(prev => prev + 1);
+        } else if (step === 2) {
             handleRun();
         } else {
             setStep(prev => prev + 1);
@@ -88,47 +81,34 @@ export const SettingsPage: React.FC = () => {
     const handlePrevStep = () => {
         setStep(prev => prev - 1);
     };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        if (event.target.files) {
-            setFiles(Array.from(event.target.files));
-        }
-    };
-
-    const handleFileDrop = (event: React.DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        if (event.dataTransfer.files) {
-            setFiles(Array.from(event.dataTransfer.files));
-        }
-    };
-    
-    const handleDropzoneClick = () => {
-        if (inputMode === 'upload') {
-            fileInputRef.current?.click();
-        }
-    };
     
     /**
      * RAG 평가 실행 요청을 소켓으로 전송합니다.
-     * 업로드 모드인 경우 파일을 먼저 업로드한 후 실행 요청을 보냅니다.
+     * LLM Generated: run-rag-llm-query
+     * Custom: run-rag-file-query
      */
-    const handleRun = async () => {
-        console.log("Running RAG evaluation:", { inputMode, files, selectedServerFileId });
+    const handleRun = () => {
+        console.log("Running RAG evaluation:", { inputMode, selectedFileName });
 
-        if (inputMode === 'upload' && files.length > 0) {
-            const uploadedFiles = await uploadFiles(files);
-            if (uploadedFiles) {
-                socket.sendFileQuery(uploadedFiles);
-            }
-        } else if (inputMode === 'server') {
-            const selectedFile = serverFiles.find(f => f.id === selectedServerFileId);
-            if (selectedFile) {
-                const targetFileName = selectedFile.fileName || selectedFile.id || 'default.txt';
-                
-                socket.sendLLMQuery({
-                    file_name: targetFileName
-                });
-            }
+        if (!selectedFileName) {
+            console.error('No file selected');
+            return;
+        }
+
+        if (inputMode === 'llm-generated') {
+            socket.send({
+                topic: 'run-rag-llm-query',
+                settings: {
+                    file_name: selectedFileName
+                }
+            });
+        } else if (inputMode === 'custom') {
+            socket.send({
+                topic: 'run-rag-file-query',
+                settings: {
+                    file_name: selectedFileName
+                }
+            });
         }
     };
 
@@ -140,17 +120,11 @@ export const SettingsPage: React.FC = () => {
             progressMessage={progressMessage}
             handleNextStep={handleNextStep}
             handlePrevStep={handlePrevStep}
-            files={files}
             inputMode={inputMode}
             setInputMode={setInputMode}
-            fileInputRef={fileInputRef}
             serverFiles={serverFiles}
-            selectedServerFileId={selectedServerFileId}
-            setSelectedServerFileId={setSelectedServerFileId}
-            handleFileChange={handleFileChange}
-            handleFileDrop={handleFileDrop}
-            handleDropzoneClick={handleDropzoneClick}
-            handleRun={handleRun}
+            selectedFileName={selectedFileName}
+            setSelectedFileName={setSelectedFileName}
         />
     );
 };

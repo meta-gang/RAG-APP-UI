@@ -206,3 +206,74 @@ export const BackButton = styled(BaseButton)`
     background-color: #4b5563;
   }
 `;
+
+/**
+ * 파일 목록 컨테이너
+ */
+export const FileListContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 0.5rem;
+`;
+
+interface FileToggleItemProps {
+  isSelected: boolean;
+}
+
+/**
+ * 파일 토글 아이템
+ */
+export const FileToggleItem = styled.div<FileToggleItemProps>`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: ${(props) => (props.isSelected ? 'rgba(79, 70, 229, 0.15)' : '#374151')};
+  border: 2px solid ${(props) => (props.isSelected ? '#6366f1' : 'transparent')};
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: ${(props) => (props.isSelected ? 'rgba(79, 70, 229, 0.25)' : '#4b5563')};
+  }
+
+  span {
+    color: #ffffff;
+    font-size: 0.875rem;
+    word-break: break-all;
+  }
+`;
+
+/**
+ * 파일 토글 원형 인디케이터
+ */
+export const FileToggleCircle = styled.div<FileToggleItemProps>`
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border-radius: 50%;
+  border: 2px solid ${(props) => (props.isSelected ? '#6366f1' : '#6b7280')};
+  background-color: ${(props) => (props.isSelected ? '#6366f1' : 'transparent')};
+  position: relative;
+  transition: all 0.2s;
+
+  ${(props) =>
+    props.isSelected &&
+    `
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: white;
+    }
+  `}
+`;

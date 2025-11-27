@@ -1,6 +1,6 @@
 // src/pages/Settings/SettingsView.tsx
 import React from 'react';
-import { Upload, PlayCircle, ArrowRight, ArrowLeft, FileText } from 'lucide-react';
+import { PlayCircle, ArrowRight, ArrowLeft, FileText } from 'lucide-react';
 import * as S from './Settings.styled';
 import { ProgressBar } from '../../components/ProgressBar';
 
@@ -10,22 +10,15 @@ interface SettingsViewProps {
   progress: number;
   progressMessage: string;
   
-  inputMode: 'upload' | 'server';
-  setInputMode: (mode: 'upload' | 'server') => void;
+  inputMode: 'llm-generated' | 'custom';
+  setInputMode: (mode: 'llm-generated' | 'custom') => void;
   
-  files: File[];
-  fileInputRef: React.RefObject<HTMLInputElement>;
-  
-  serverFiles: Array<{ id: string; query: string; filePath?: string; file_path?: string }>;
-  selectedServerFileId: string;
-  setSelectedServerFileId: (id: string) => void;
+  serverFiles: string[];
+  selectedFileName: string;
+  setSelectedFileName: (fileName: string) => void;
   
   handleNextStep: () => void;
   handlePrevStep: () => void;
-  handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  handleFileDrop: (event: React.DragEvent<HTMLDivElement>) => void;
-  handleDropzoneClick: () => void;
-  handleRun: () => void;
 }
 
 /**
@@ -42,16 +35,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   progressMessage,
   inputMode,
   setInputMode,
-  files,
-  fileInputRef,
   serverFiles,
-  selectedServerFileId,
-  setSelectedServerFileId,
+  selectedFileName,
+  setSelectedFileName,
   handleNextStep,
   handlePrevStep,
-  handleFileChange,
-  handleFileDrop,
-  handleDropzoneClick,
 }) => {
 
   /**
@@ -60,14 +48,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
    */
   const isNextDisabled = () => {
     if (step === 1) {
-      // 1단계: 파일이 없거나(upload 모드), 선택된 파일 ID가 없으면(server 모드) 비활성화
-      if (inputMode === 'upload') {
-        return files.length === 0;
-      } else {
-        return !selectedServerFileId || serverFiles.length === 0;
-      }
+      // 1단계: 선택만 하면 되므로 항상 활성화
+      return false;
     }
-    return false; // 2단계는 확인 단계라 항상 활성화
+    if (step === 2) {
+      // 2단계: 선택된 파일이 없으면 비활성화
+      return !selectedFileName || serverFiles.length === 0;
+    }
+    return false;
   };
 
   /**
@@ -80,74 +68,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div>
             <S.Label>Step 1: Select Query Source</S.Label>
             <S.Grid>
-              {/* 옵션 1: 내 컴퓨터에서 업로드 */}
-              <S.OptionBox isSelected={inputMode === 'upload'}>
+              {/* 옵션 1: LLM Generated Query */}
+              <S.OptionBox isSelected={inputMode === 'llm-generated'}>
                 <S.RadioWrapper>
                   <input
                     type="radio"
                     name="input-mode"
-                    value="upload"
-                    checked={inputMode === 'upload'}
-                    onChange={() => setInputMode('upload')}
+                    value="llm-generated"
+                    checked={inputMode === 'llm-generated'}
+                    onChange={() => setInputMode('llm-generated')}
                   />
-                  <span>Upload JSON File (My Computer)</span>
+                  <span>Select from Server (LLM Generated Query)</span>
                 </S.RadioWrapper>
-                {inputMode === 'upload' && (
-                  <S.Dropzone
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={handleFileDrop}
-                    onClick={handleDropzoneClick}
-                  >
-                    <Upload size={24} />
-                    <p>Drag & drop .json files here</p>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      accept=".json" // JSON 파일만 허용
-                      multiple
-                      style={{ display: 'none' }}
-                    />
-                  </S.Dropzone>
-                )}
-                {inputMode === 'upload' && files.length > 0 && (
-                  <S.FileList>Selected: {files.map((f) => f.name).join(', ')}</S.FileList>
-                )}
               </S.OptionBox>
 
-              {/* 옵션 2: 서버 파일 선택 */}
-              <S.OptionBox isSelected={inputMode === 'server'}>
+              {/* 옵션 2: Custom Query */}
+              <S.OptionBox isSelected={inputMode === 'custom'}>
                 <S.RadioWrapper>
                   <input
                     type="radio"
                     name="input-mode"
-                    value="server"
-                    checked={inputMode === 'server'}
-                    onChange={() => setInputMode('server')}
+                    value="custom"
+                    checked={inputMode === 'custom'}
+                    onChange={() => setInputMode('custom')}
                   />
-                  <span>Select from Server (Previously Generated)</span>
+                  <span>Select from Server (Custom Query)</span>
                 </S.RadioWrapper>
-                
-                {inputMode === 'server' && (
-                  <S.SubOptionsContainer>
-                    {serverFiles.length > 0 ? (
-                      <S.Select 
-                        value={selectedServerFileId} 
-                        onChange={(e) => setSelectedServerFileId(e.target.value)}
-                      >
-                        {serverFiles.map((file) => (
-                          <option key={file.id} value={file.id}>
-                            {file.query || file.id}
-                          </option>
-                        ))}
-                      </S.Select>
-                    ) : (
-                      <div style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                        No files found on server.
-                      </div>
-                    )}
-                  </S.SubOptionsContainer>
-                )}
               </S.OptionBox>
             </S.Grid>
           </div>
@@ -155,23 +101,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       case 2:
         return (
           <div>
-            <S.Label>Step 2: Confirm & Run</S.Label>
-            <S.OptionBox isSelected={true} style={{ cursor: 'default' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <FileText size={20} color="#6366f1" />
-                <strong style={{ color: '#fff' }}>Target Query File</strong>
-              </div>
-              
-              {inputMode === 'upload' ? (
-                <p style={{ color: '#d1d5db' }}>
-                  {files.length > 0 ? files.map(f => f.name).join(', ') : 'No file selected'}
+            <S.Label>Step 2: Select File & Run</S.Label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <FileText size={20} color="#6366f1" />
+              <strong style={{ color: '#fff' }}>
+                {inputMode === 'llm-generated' ? 'LLM Generated Query Files' : 'Custom Query Files'}
+              </strong>
+            </div>
+            
+            {serverFiles.length > 0 ? (
+              <S.FileListContainer>
+                {serverFiles.map((file) => (
+                  <S.FileToggleItem
+                    key={file}
+                    isSelected={selectedFileName === file}
+                    onClick={() => setSelectedFileName(file)}
+                  >
+                    <S.FileToggleCircle isSelected={selectedFileName === file} />
+                    <span>{file}</span>
+                  </S.FileToggleItem>
+                ))}
+              </S.FileListContainer>
+            ) : (
+              <S.OptionBox isSelected={true} style={{ cursor: 'default' }}>
+                <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center' }}>
+                  Loading files from server...
                 </p>
-              ) : (
-                <p style={{ color: '#d1d5db' }}>
-                  {serverFiles.find(f => f.id === selectedServerFileId)?.query || 'No file selected'}
-                </p>
-              )}
-            </S.OptionBox>
+              </S.OptionBox>
+            )}
           </div>
         );
       default:

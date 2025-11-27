@@ -97,6 +97,48 @@ class SocketClient {
     });
   }
 
+  /**
+   * LLM Generated Query 파일 목록 요청
+   */
+  requestGeneratedQueryFiles() {
+    this.send({
+      topic: 'generated-query-files'
+    });
+  }
+
+  /**
+   * Custom Query 파일 목록 요청
+   */
+  requestCustomQueryFiles() {
+    this.send({
+      topic: 'custom-query-files'
+    });
+  }
+
+  /**
+   * RAG 실행 (run-rag-llm-query)
+   */
+  runRagLLMQuery(fileName: string) {
+    this.send({
+      topic: 'run-rag-llm-query',
+      settings: {
+        file_name: fileName
+      }
+    });
+  }
+
+  /**
+   * RAG 실행 (run-rag-file-query)
+   */
+  runRagFileQuery(fileName: string) {
+    this.send({
+      topic: 'run-rag-file-query',
+      settings: {
+        file_name: fileName
+      }
+    });
+  }
+
   disconnect() {
     if (this.ws) {
       this.ws.close();
