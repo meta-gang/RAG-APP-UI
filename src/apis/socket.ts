@@ -10,7 +10,8 @@ class SocketClient {
   private handlers: Record<string, ((data: any) => void)[]> = {};
 
   constructor() {
-    this.url = 'ws://localhost:8081/ws';
+    const hostname = window.location.hostname;
+    this.url = `ws://${hostname}:8081/`;
   }
 
   connect() {
