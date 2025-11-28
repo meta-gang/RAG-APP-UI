@@ -157,7 +157,7 @@ export const DashboardPage: React.FC = () => {
       )
     );
 
-    const overallScore = metricCount > 0 ? `${((totalScore / metricCount) * 100).toFixed(1)}%` : '0%';
+    const overallScore = metricCount > 0 ? `${((totalScore / metricCount)).toFixed(1)}%` : '0%';
 
     let performanceChange = { value: '+0.0%', isPositive: true };
     if (evaluationRuns.length > 1) {
@@ -176,7 +176,7 @@ export const DashboardPage: React.FC = () => {
 
       const latestAvg = metricCount > 0 ? totalScore / metricCount : 0;
       const prevAvg = prevMetricCount > 0 ? prevTotalScore / prevMetricCount : 0;
-      const change = (latestAvg - prevAvg) * 100;
+      const change = (latestAvg - prevAvg);
       performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
     }
 
@@ -230,7 +230,7 @@ export const DashboardPage: React.FC = () => {
               if (metricCount === 0) return sum;
               return sum + q.metrics.reduce((s, m) => s + m.score, 0) / metricCount;
             }, 0) / module.queries.length;
-          entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
+          entry[moduleName] = parseFloat((avgScore).toFixed(2));
         }
       });
       return { ...entry, _hasData: hasData };
