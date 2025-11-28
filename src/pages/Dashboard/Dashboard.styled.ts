@@ -162,15 +162,18 @@ export const QueryItem = styled.div`
   background-color: #374151; // bg-gray-700
   padding: 0.75rem;
   border-radius: 0.5rem; // rounded-lg
+  max-width: 100%;
+  overflow-wrap: break-word;
 `;
 
 export const QueryText = styled.p`
   font-size: 0.875rem; // text-sm
   font-weight: 600;
   color: #67e8f9; // text-cyan-400
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  max-width: 100%;
 `;
 
 export const ScoreWrapper = styled.div`
