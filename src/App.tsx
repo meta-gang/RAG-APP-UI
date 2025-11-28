@@ -1,3 +1,4 @@
+// src/App.tsx
 import React, { useEffect } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import { Header } from '@components/Header';
@@ -7,11 +8,11 @@ import { SettingsPage } from '@pages/Settings';
 import { GlobalStyle } from '@styles/GlobalStyle';
 import { socket } from '@apis/socket';
 
+/**
+ * 메인 앱 컴포넌트
+ * 전역 소켓 연결 및 라우팅을 정의합니다.
+ */
 const App = () => {
-  /**
-   * 앱 초기화 시 소켓 연결을 수행합니다.
-   * 페이지 이동 시에도 연결이 끊기지 않고 유지됩니다.
-   */
   useEffect(() => {
     socket.connect();
 
@@ -30,7 +31,7 @@ const App = () => {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/test" element={<TestQueryPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/run-queries" element={<SettingsPage />} />
           </Routes>
         </main>
       </div>

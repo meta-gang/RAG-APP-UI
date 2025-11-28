@@ -9,24 +9,22 @@ interface SettingsViewProps {
   isRunning: boolean;
   progress: number;
   progressMessage: string;
-  
+
   inputMode: 'llm-generated' | 'custom';
   setInputMode: (mode: 'llm-generated' | 'custom') => void;
-  
+
   serverFiles: string[];
   selectedFileName: string;
   setSelectedFileName: (fileName: string) => void;
-  
+
   handleNextStep: () => void;
   handlePrevStep: () => void;
 }
 
 /**
- * SettingsView 컴포넌트
+ * SettingsView 컴포넌트 (Run Queries 화면)
  *
- * - step 기반 UI (1: 선택, 2: 확인)
- * - 업로드 / 서버 파일 선택 모드 지원
- * - 파일 선택, 드래그/드롭, 서버 파일 선택 UI 제공
+ * 쿼리 소스 선택 및 파일 선택 UI를 렌더링합니다.
  */
 export const SettingsView: React.FC<SettingsViewProps> = ({
   step,
@@ -41,26 +39,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   handleNextStep,
   handlePrevStep,
 }) => {
-
-  /**
-   * 다음 버튼 활성화 여부 결정
-   * @returns boolean
-   */
   const isNextDisabled = () => {
-    if (step === 1) {
-      // 1단계: 선택만 하면 되므로 항상 활성화
-      return false;
-    }
-    if (step === 2) {
-      // 2단계: 선택된 파일이 없으면 비활성화
-      return !selectedFileName || serverFiles.length === 0;
-    }
+    if (step === 1) return false;
+    if (step === 2) return !selectedFileName || serverFiles.length === 0;
     return false;
   };
 
-  /**
-   * 현재 step에 맞는 콘텐츠를 렌더링합니다.
-   */
   const renderStepContent = () => {
     switch (step) {
       case 1:
@@ -68,7 +52,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div>
             <S.Label>Step 1: Select Query Source</S.Label>
             <S.Grid>
-              {/* 옵션 1: LLM Generated Query */}
               <S.OptionBox isSelected={inputMode === 'llm-generated'}>
                 <S.RadioWrapper>
                   <input
@@ -82,7 +65,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </S.RadioWrapper>
               </S.OptionBox>
 
-              {/* 옵션 2: Custom Query */}
               <S.OptionBox isSelected={inputMode === 'custom'}>
                 <S.RadioWrapper>
                   <input
@@ -108,7 +90,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {inputMode === 'llm-generated' ? 'LLM Generated Query Files' : 'Custom Query Files'}
               </strong>
             </div>
-            
+
             {serverFiles.length > 0 ? (
               <S.FileListContainer>
                 {serverFiles.map((file) => (
@@ -125,7 +107,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ) : (
               <S.OptionBox isSelected={true} style={{ cursor: 'default' }}>
                 <p style={{ color: '#9ca3af', fontSize: '0.875rem', textAlign: 'center' }}>
-                  Loading files from server...
+                  No files found or loading...
                 </p>
               </S.OptionBox>
             )}
@@ -142,7 +124,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <ProgressBar progress={progress} message={progressMessage} />
       ) : (
         <>
-          <S.Title>Evaluation Settings</S.Title>
+          {/* [수정] 제목 변경: Evaluation Settings -> Run Queries */}
+          <S.Title>Run Queries</S.Title>
           <S.FormContainer>
             {renderStepContent()}
             <S.ButtonWrapper>
