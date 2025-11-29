@@ -35,12 +35,18 @@ export function transformData(storage: any): EvaluationRun {
 
       for (const moduleName in snapshotData) {
         if (moduleName === 'performances' || moduleName === 'x_time') continue;
+        
+        // starter 모듈(Acceptor)은 그래프에서 제외
+        if (moduleName === 'starter') continue;
 
         const moduleSnapshots = snapshotData[moduleName];
         if (!Array.isArray(moduleSnapshots) || moduleSnapshots.length === 0) continue;
         
         const snapshot = moduleSnapshots[0]; 
         const rawMetrics = snapshot.performances || [];
+        
+        // is_starter 필드 확인 (백엔드에서 is_starter=True로 표시된 모듈 필터링)
+        const isStarter = snapshot.is_starter === true || snapshot.is_starter === 'true';
 
         const metrics: QueryEvaluation['metrics'] = rawMetrics.map((p: any) => ({
           // [중요] _Performance__metric 또는 metric 키를 모두 확인
@@ -56,7 +62,7 @@ export function transformData(storage: any): EvaluationRun {
         };
 
         if (!modulesMap.has(moduleName)) {
-          modulesMap.set(moduleName, { moduleName: moduleName, queries: [] });
+          modulesMap.set(moduleName, { moduleName: moduleName, queries: [], isStarter: isStarter });
         }
         modulesMap.get(moduleName)!.queries.push(queryEval);
       }

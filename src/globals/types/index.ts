@@ -22,6 +22,7 @@ export type QueryEvaluation = {
 export type ModuleEvaluation = {
     moduleName: string; // 모듈의 이름 (예: "MyRetrievalModule")
     queries: QueryEvaluation[]; // 해당 모듈에서 평가된 쿼리 목록
+    isStarter?: boolean; // Starter 모듈 여부 (true일 경우 그래프에서 제외)
 };
 
 /**

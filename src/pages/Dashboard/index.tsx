@@ -112,21 +112,19 @@ export const DashboardPage: React.FC = () => {
     
     // 구독 요청이 누락되지 않도록 함
     socket.subscribe(['history']);
+    // 원래는 첫 실행에만 요청했으나 채팅 쿼리, 파일 쿼리 왔다갔다 할 때 해당 내용을 지속적으로 갱신해야 함
+    console.log('🚀 [Dashboard] Requesting history for loop_graph...');
+    // 소켓 연결 안정화를 위해 약간의 지연 후 요청
+    setTimeout(() => {
+        socket.send({ topic: 'start!', flow_id: 'loop_graph' });
+    }, 200);
 
-    // 데이터가 없을 때만 요청 (중복 요청 방지)
-    if (evaluationRuns.length === 0) {
-      console.log('🚀 [Dashboard] Requesting history for loop_graph...');
-      // 소켓 연결 안정화를 위해 약간의 지연 후 요청
-      setTimeout(() => {
-          socket.send({ topic: 'start!', flow_id: 'loop_graph' });
-      }, 200);
-
-      setAppLoading((prev: AppLoadingState) => ({
-        ...prev,
-        isLoading: true,
-        message: 'Fetching History...',
-      }));
-    }
+    setAppLoading((prev: AppLoadingState) => ({
+      ...prev,
+      isLoading: true,
+      message: 'Fetching History...',
+    }));    
+    
 
     return () => {
       socket.off('history', handleDashboardHistory);
@@ -136,7 +134,12 @@ export const DashboardPage: React.FC = () => {
   const allModuleNames = useMemo(() => {
     const names = new Set<string>();
     evaluationRuns.forEach((run) => {
-      run.modules.forEach((module) => names.add(module.moduleName));
+      run.modules.forEach((module) => {
+        // is_starter=true인 모듈은 제외
+        if (!module.isStarter) {
+          names.add(module.moduleName);
+        }
+      });
     });
     return Array.from(names);
   }, [evaluationRuns]);
@@ -149,14 +152,17 @@ export const DashboardPage: React.FC = () => {
     let totalScore = 0,
       metricCount = 0;
 
-    latestRun.modules.forEach((m) =>
-      m.queries.forEach((q) =>
-        q.metrics.forEach((metric) => {
-          totalScore += metric.score;
-          metricCount++;
-        })
-      )
-    );
+    latestRun.modules.forEach((m) => {
+      // is_starter=true인 모듈은 제외
+      if (!m.isStarter) {
+        m.queries.forEach((q) =>
+          q.metrics.forEach((metric) => {
+            totalScore += metric.score;
+            metricCount++;
+          })
+        );
+      }
+    });
 
     const overallScore = metricCount > 0 ? `${(totalScore / metricCount).toFixed(1)}%` : '0%';
 
@@ -166,14 +172,17 @@ export const DashboardPage: React.FC = () => {
       let prevTotalScore = 0,
         prevMetricCount = 0;
 
-      previousRun.modules.forEach((m) =>
-        m.queries.forEach((q) =>
-          q.metrics.forEach((metric) => {
-            prevTotalScore += metric.score;
-            prevMetricCount++;
-          })
-        )
-      );
+      previousRun.modules.forEach((m) => {
+        // is_starter=true인 모듈은 제외
+        if (!m.isStarter) {
+          m.queries.forEach((q) =>
+            q.metrics.forEach((metric) => {
+              prevTotalScore += metric.score;
+              prevMetricCount++;
+            })
+          );
+        }
+      });
 
       const latestAvg = metricCount > 0 ? totalScore / metricCount : 0;
       const prevAvg = prevMetricCount > 0 ? prevTotalScore / prevMetricCount : 0;
@@ -185,7 +194,8 @@ export const DashboardPage: React.FC = () => {
       minScore = Infinity;
 
     latestRun.modules.forEach((module) => {
-      if (module.queries.length === 0) return;
+      // is_starter=true인 모듈은 제외
+      if (module.isStarter || module.queries.length === 0) return;
       let moduleTotalScore = 0,
         moduleMetricCount = 0;
 
@@ -221,7 +231,8 @@ export const DashboardPage: React.FC = () => {
       let hasData = false;
       allModuleNames.forEach((moduleName) => {
         const module = run.modules.find((m) => m.moduleName === moduleName);
-        if (!module || module.queries.length === 0) {
+        // is_starter=true인 모듈 또는 쿼리가 없는 경우 null 처리
+        if (!module || module.isStarter || module.queries.length === 0) {
           entry[moduleName] = null;
         } else {
           hasData = true;
@@ -251,6 +262,11 @@ export const DashboardPage: React.FC = () => {
         let hasData = false;
         allModuleNames.forEach((moduleName) => {
           const module = run.modules.find((m) => m.moduleName === moduleName);
+          // is_starter=true인 모듈은 제외
+          if (module?.isStarter) {
+            entry[moduleName] = null;
+            return;
+          }
           const scores =
             (module?.queries
               .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
