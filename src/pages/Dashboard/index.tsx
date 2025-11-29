@@ -42,6 +42,7 @@ const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (ite
 
 /**
  * DashboardPage 컴포넌트
+ * 백엔드로부터 RAG 실행 이력을 수신하여 시각화합니다.
  */
 export const DashboardPage: React.FC = () => {
   const evaluationRuns = useRecoilValue(dashboardResultState);
@@ -64,61 +65,61 @@ export const DashboardPage: React.FC = () => {
   }, [evaluationRuns, selectedDate, selectedModule]);
 
   /**
-   * 소켓으로부터 history 데이터를 수신하여 파싱하고 Recoil 상태로 저장합니다.
+   * 소켓 핸들러 등록 및 데이터 요청
    */
   useEffect(() => {
     const handleDashboardHistory = (data: any) => {
-      console.log('🔥 [Dashboard] Raw Data Received:', data);
+      if (data.topic === 'history' && data.history) {
+        console.log('✅ [Dashboard] Received history data:', data.history);
+        
+        try {
+          const historyData = data.history;
+          const parsedRuns: any[] = [];
 
-      if (data.topic !== 'history') {
-        console.warn('⚠️ [Dashboard] Received data but topic is not history:', data.topic);
-        return;
-      }
+          // 타임스탬프 키 기반 파싱
+          Object.keys(historyData).forEach((timestampKey) => {
+            const states = historyData[timestampKey];
+            // 데이터가 비어있지 않은 경우만 처리
+            if (states && Object.keys(states).length > 0) {
+                const simulatedStorageData = {
+                  ts: timestampKey,
+                  states: states,
+                };
+                const run = transformData(simulatedStorageData);
+                parsedRuns.push(run);
+            }
+          });
 
-      if (!data.history) {
-        console.error('❌ [Dashboard] Payload missing "history" field:', data);
-        return;
-      }
-
-      console.log('✅ [Dashboard] Processing history data...', data.history);
-
-      try {
-        const historyData = data.history;
-        const parsedRuns: any[] = [];
-
-        Object.keys(historyData).forEach((timestampKey) => {
-          const states = historyData[timestampKey];
-          const simulatedStorageData = {
-            ts: timestampKey,
-            states: states,
-          };
-          const run = transformData(simulatedStorageData);
-          parsedRuns.push(run);
-        });
-
-        parsedRuns.sort((a, b) => (a.date > b.date ? 1 : -1));
-        setDashboardResult(parsedRuns);
-
-        setAppLoading((prev: AppLoadingState) => ({
-          ...prev,
-          isLoading: false,
-          message: 'Data Loaded',
-        }));
-      } catch (error) {
-        console.error('❌ [Dashboard] Data Processing Error:', error);
+          if (parsedRuns.length > 0) {
+              parsedRuns.sort((a, b) => (a.date > b.date ? 1 : -1));
+              setDashboardResult(parsedRuns);
+              
+              setAppLoading((prev: AppLoadingState) => ({
+                ...prev,
+                isLoading: false,
+                message: 'Data Loaded',
+              }));
+          } else {
+              console.warn('[Dashboard] Parsed runs are empty. Check data structure.');
+          }
+        } catch (error) {
+          console.error('❌ [Dashboard] Data Processing Error:', error);
+        }
       }
     };
-    console.log('🚀 [Dashboard] Subscribing to history data...');
-    socket.on('history', handleDashboardHistory);
 
-    console.log('📡 [Dashboard] Subscribing to history topic...');
+    socket.on('history', handleDashboardHistory);
+    
+    // 구독 요청이 누락되지 않도록 함
     socket.subscribe(['history']);
 
-    if (!isDataLoaded && evaluationRuns.length === 0) {
-      console.log('🚀 [Dashboard] Auto-requesting start!');
+    // 데이터가 없을 때만 요청 (중복 요청 방지)
+    if (evaluationRuns.length === 0) {
+      console.log('🚀 [Dashboard] Requesting history for loop_graph...');
+      // 소켓 연결 안정화를 위해 약간의 지연 후 요청
       setTimeout(() => {
           socket.send({ topic: 'start!', flow_id: 'loop_graph' });
-      }, 100);
+      }, 200);
 
       setAppLoading((prev: AppLoadingState) => ({
         ...prev,
@@ -157,7 +158,7 @@ export const DashboardPage: React.FC = () => {
       )
     );
 
-    const overallScore = metricCount > 0 ? `${((totalScore / metricCount)).toFixed(1)}%` : '0%';
+    const overallScore = metricCount > 0 ? `${(totalScore / metricCount).toFixed(1)}%` : '0%';
 
     let performanceChange = { value: '+0.0%', isPositive: true };
     if (evaluationRuns.length > 1) {
@@ -176,7 +177,7 @@ export const DashboardPage: React.FC = () => {
 
       const latestAvg = metricCount > 0 ? totalScore / metricCount : 0;
       const prevAvg = prevMetricCount > 0 ? prevTotalScore / prevMetricCount : 0;
-      const change = (latestAvg - prevAvg);
+      const change = latestAvg - prevAvg;
       performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
     }
 
@@ -230,7 +231,7 @@ export const DashboardPage: React.FC = () => {
               if (metricCount === 0) return sum;
               return sum + q.metrics.reduce((s, m) => s + m.score, 0) / metricCount;
             }, 0) / module.queries.length;
-          entry[moduleName] = parseFloat((avgScore).toFixed(2));
+          entry[moduleName] = parseFloat(avgScore.toFixed(2));
         }
       });
       return { ...entry, _hasData: hasData };
@@ -257,7 +258,7 @@ export const DashboardPage: React.FC = () => {
           if (scores.length > 0) {
             hasData = true;
             const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-            entry[moduleName] = parseFloat((avgScore * 100).toFixed(2));
+            entry[moduleName] = parseFloat(avgScore.toFixed(2));
           } else {
             entry[moduleName] = null;
           }
@@ -273,7 +274,7 @@ export const DashboardPage: React.FC = () => {
     const scores = queries
       .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
       .filter((s) => s !== undefined)
-      .map((s) => s! * 100);
+      .map((s) => s! * 1); // 점수 스케일에 따라 * 100 또는 * 1 (현재 데이터는 이미 100단위로 보임)
     const bins = Array.from({ length: 11 }, (_, i) => i * 10);
     const freqMap = bins.slice(0, -1).map((binStart, i) => {
       const binEnd = bins[i + 1];
@@ -310,7 +311,7 @@ export const DashboardPage: React.FC = () => {
     let queries = selectedModuleData.queries.filter((q) => q.metrics.some((m) => m.name === zoomedMetric));
     if (selectedScoreRange) {
       queries = queries.filter((q) => {
-        const score = q.metrics.find((m) => m.name === zoomedMetric)!.score * 100;
+        const score = q.metrics.find((m) => m.name === zoomedMetric)!.score * 1;
         return (
           score >= selectedScoreRange[0] &&
           score <= (selectedScoreRange[1] === 100 ? 100 : selectedScoreRange[1] - 0.01)
@@ -343,8 +344,8 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleRetryFetch = () => {
-    console.log('Manual Retry: Sending start!');
-    socket.send({ topic: 'start!', flow_id: 'loop_graph' });
+      console.log('Manual Retry: Sending start!');
+      socket.send({ topic: 'start!', flow_id: 'loop_graph' });
   };
 
   if (evaluationRuns.length === 0 && !isDataLoaded) {
