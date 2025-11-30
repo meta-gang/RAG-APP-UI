@@ -30,6 +30,7 @@ export type ModuleEvaluation = {
  */
 export type EvaluationRun = {
     date: string; // 평가 실행 날짜 (예: "09-21")
+    timestamp: string; // 원본 타임스탬프 (예: "251130212120") - 정렬용
     modules: ModuleEvaluation[]; // 해당 실행에 포함된 모듈들의 평가 결과 목록
 };
 

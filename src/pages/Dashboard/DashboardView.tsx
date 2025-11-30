@@ -85,7 +85,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             <Line
                                 key={moduleName} type="monotone" dataKey={moduleName}
                                 stroke={moduleColors[index % moduleColors.length]} strokeWidth={2}
-                                activeDot={{ onClick: (e, payload) => handleDotClick(payload), r: 8, style: { cursor: 'pointer' } }}
+                                dot={{ 
+                                    onClick: (data: any) => {
+                                        handleDotClick(data);
+                                    }, 
+                                    r: 5, 
+                                    style: { cursor: 'pointer' },
+                                    fill: moduleColors[index % moduleColors.length]
+                                }}
+                                activeDot={{ 
+                                    onClick: (e: any, payload: any) => handleDotClick(payload),
+                                    r: 8, 
+                                    style: { cursor: 'pointer' } 
+                                }}
                                 connectNulls={false}
                             />
                         ))}

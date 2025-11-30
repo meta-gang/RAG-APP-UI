@@ -11,17 +11,18 @@ import { EvaluationRun, ModuleEvaluation, QueryEvaluation } from '@type/index';
 export function transformData(storage: any): EvaluationRun {
   if (!storage || typeof storage !== 'object') {
     console.warn('[transformData] Storage is null or invalid');
-    return { date: 'N/A', modules: [] };
+    return { date: 'N/A', timestamp: 'N/A', modules: [] };
   }
 
   const ts = storage.ts;
   const states = storage.states || {};
 
   let formattedDate = "N/A";
-  if (ts && typeof ts === 'string' && ts.length >= 8) {
-    formattedDate = ts.substring(4, 6) + '-' + ts.substring(6, 8);
+  if (ts && typeof ts === 'string' && ts.length >= 6) {
+    formattedDate = ts.substring(2, 4) + '-' + ts.substring(4, 6);
   }
 
+  const originalTimestamp = ts || "N/A";
   const modulesMap: Map<string, ModuleEvaluation> = new Map();
   const queries = Object.values(states);
 
@@ -35,8 +36,6 @@ export function transformData(storage: any): EvaluationRun {
 
       for (const moduleName in snapshotData) {
         if (moduleName === 'performances' || moduleName === 'x_time') continue;
-        
-        // starter 모듈(Acceptor)은 그래프에서 제외
         if (moduleName === 'starter') continue;
 
         const moduleSnapshots = snapshotData[moduleName];
@@ -44,14 +43,10 @@ export function transformData(storage: any): EvaluationRun {
         
         const snapshot = moduleSnapshots[0]; 
         const rawMetrics = snapshot.performances || [];
-        
-        // is_starter 필드 확인 (백엔드에서 is_starter=True로 표시된 모듈 필터링)
         const isStarter = snapshot.is_starter === true || snapshot.is_starter === 'true';
 
         const metrics: QueryEvaluation['metrics'] = rawMetrics.map((p: any) => ({
-          // [중요] _Performance__metric 또는 metric 키를 모두 확인
           name: p.metric || p._Performance__metric || "Unknown",
-          // [중요] _Performance__score 또는 score 키를 모두 확인
           score: p.score !== undefined ? p.score : (p._Performance__score !== undefined ? p._Performance__score : 0)
         }));
 
@@ -90,6 +85,7 @@ export function transformData(storage: any): EvaluationRun {
 
   return {
     date: formattedDate,
+    timestamp: originalTimestamp,
     modules: Array.from(modulesMap.values())
   };
 }
