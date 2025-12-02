@@ -1,5 +1,5 @@
 {
-  "name": "react_template",
+  "name": "ragang",
   "version": "0.0.0",
   "description": "",
   "main": "index.js",
@@ -10,7 +10,7 @@
   "browserslist": [
     "ie 11"
   ],
-  "author": "react_template",
+  "author": "ragang",
   "homepage": ".",
   "license": "ISC",
   "dependencies": {
