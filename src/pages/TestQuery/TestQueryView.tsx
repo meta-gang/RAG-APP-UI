@@ -30,9 +30,10 @@ import 'reactflow/dist/style.css';
 
 /**
  * 점수를 퍼센트 형식(소수점 1자리) 문자열로 포맷팅합니다.
+ * 점수가 1.0 이하인 경우 100을 곱하여 백분율로 변환합니다.
  *
- * @param score - 원본 점수
- * @returns 포맷된 문자열 (소수점 1자리)
+ * @param score 원본 점수
+ * @returns 포맷된 문자열
  */
 const formatScore = (score: number): string => {
   const finalScore = score <= 1 ? score * 100 : score;
@@ -40,9 +41,10 @@ const formatScore = (score: number): string => {
 };
 
 /**
- * ReactFlow의 커스텀 노드 컴포넌트입니다.
+ * ReactFlow 그래프 내에서 사용되는 커스텀 모듈 노드입니다.
+ * 상태(pending, loading, completed)에 따라 스타일이 변경됩니다.
  *
- * @param data - 노드의 label과 상태를 포함한 객체
+ * @param data 노드 데이터 (label, status)
  */
 const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
   let style: React.CSSProperties = {
@@ -92,7 +94,8 @@ const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
 const nodeTypes = { moduleNode: ModuleNode };
 
 /**
- * 라이브 차트의 툴팁 컴포넌트
+ * 차트 툴팁 컴포넌트입니다.
+ * 마우스 오버 시 해당 쿼리의 메트릭 점수들을 표시합니다.
  */
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -131,7 +134,9 @@ interface TestQueryViewProps {
 
 /**
  * TestQueryView 컴포넌트
- * 파이프라인 그래프, 채팅창, 결과 목록, 실시간 차트 등을 렌더링합니다.
+ *
+ * ReactFlow를 이용한 파이프라인 그래프, 실시간 채팅 영역,
+ * 평가 결과 아코디언 목록, 그리고 실시간 점수 트렌드 차트를 렌더링합니다.
  */
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
   nodes,
@@ -144,7 +149,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   liveMetricsHistory,
   handleReset,
   handleFileUpload,
-  handleLLMQuery
+  handleLLMQuery,
 }) => {
   const messageAreaRef = useRef<HTMLDivElement>(null);
 
@@ -173,7 +178,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       const processedMetrics = Object.entries(metricMap).map(([metricName, scores]) => {
         const ranges = Array.from({ length: 10 }, (_, i) => ({
           range: `${i * 10}-${(i + 1) * 10}`,
-          count: 0
+          count: 0,
         }));
 
         scores.forEach((score) => {

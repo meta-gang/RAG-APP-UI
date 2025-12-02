@@ -1,16 +1,16 @@
 // src/pages/TestQuery/index.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRecoilState } from 'recoil';
 import { MarkerType, Node, Edge } from 'reactflow';
 import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { socket } from '../../apis/socket';
 
-type ModuleStatus = 'pending' | 'loading' | 'completed';
-
 /**
  * TestQueryPage 컴포넌트
- * RAG 파이프라인 실시간 테스트 및 시각화
+ *
+ * RAG 파이프라인의 실시간 테스트, 토폴로지 시각화, 채팅 인터페이스,
+ * 그리고 실시간 평가 지표(Metric) 차트를 제공하는 페이지입니다.
  */
 export const TestQueryPage: React.FC = () => {
   type ModulePair = [string, string];
@@ -21,8 +21,11 @@ export const TestQueryPage: React.FC = () => {
   const [edges, setEdges] = useState<Edge[]>([]);
 
   /**
-   * 소켓 이벤트를 등록하고 정리합니다.
-   * 수신된 토픽에 따라 Recoil 상태와 로컬 상태를 갱신합니다.
+   * 소켓 이벤트를 구독하고 수신된 데이터를 처리하여 상태를 갱신합니다.
+   *
+   * - rag-container: 파이프라인 구조(토폴로지) 수신
+   * - module-statu: 각 모듈의 실행 상태(pending/loading/completed) 수신
+   * - rag-result-data: RAG 실행 완료 후 결과 및 평가 지표 수신
    */
   useEffect(() => {
     socket.subscribe(['rag-container', 'rag-result-data', 'module-statu', 'error']);
@@ -48,14 +51,14 @@ export const TestQueryPage: React.FC = () => {
         const states = data.storage.states;
         const keys = Object.keys(states);
         if (keys.length === 0) return;
-        
+
         const lastKey = keys[keys.length - 1];
         const lastState = states[lastKey];
 
         let botResponse = 'Evaluation Completed.';
         if (lastState.gen) botResponse = lastState.gen;
         else if (lastState.snapshots?.output?.[0]?.data?.gen) {
-            botResponse = lastState.snapshots.output[0].data.gen;
+          botResponse = lastState.snapshots.output[0].data.gen;
         }
 
         setTqState((prev) => ({
@@ -63,45 +66,59 @@ export const TestQueryPage: React.FC = () => {
           messages: [...prev.messages, { sender: 'bot', text: botResponse }],
         }));
 
+        const newMetrics: any[] = [];
+
         if (lastState.snapshots) {
-            const newMetrics: any[] = [];
-            Object.entries(lastState.snapshots).forEach(([moduleName, snapshots]: [string, any]) => {
-                if (Array.isArray(snapshots) && snapshots.length > 0) {
-                    const snap = snapshots[0];
-                    if (snap.performances) {
-                        const scores = snap.performances.map((p: any) => ({
-                            name: p.metric || p._Performance__metric || 'Unknown',
-                            score: p.score || p._Performance__score || 0
-                        }));
-                        if(scores.length > 0) newMetrics.push({ moduleName, metrics: scores });
-                    }
-                }
+          Object.entries(lastState.snapshots).forEach(([moduleName, snapshots]: [string, any]) => {
+            if (moduleName === 'starter') return;
+
+            if (Array.isArray(snapshots) && snapshots.length > 0) {
+              const snap = snapshots[0];
+              if (snap.performances) {
+                const scores = snap.performances.map((p: any) => ({
+                  name: p.metric || p._Performance__metric || 'Unknown',
+                  score: p.score !== undefined ? p.score : (p._Performance__score !== undefined ? p._Performance__score : 0),
+                }));
+                if (scores.length > 0) newMetrics.push({ moduleName, metrics: scores });
+              }
+            }
+          });
+        }
+
+        if (lastState.performances && Array.isArray(lastState.performances) && lastState.performances.length > 0) {
+          const e2eScores = lastState.performances.map((p: any) => ({
+            name: p.metric || p._Performance__metric || 'Unknown',
+            score: p.score !== undefined ? p.score : (p._Performance__score !== undefined ? p._Performance__score : 0),
+          }));
+
+          if (e2eScores.length > 0) {
+            newMetrics.push({ moduleName: 'E2E-Metrics', metrics: e2eScores });
+          }
+        }
+
+        if (newMetrics.length > 0) {
+          setTqState((prev) => {
+            const updatedMetrics = prev.metrics.map((m) => ({ ...m, metrics: [...m.metrics] }));
+            const currentQueryNumber = prev.liveMetricsHistory.length + 1;
+            const newChartData: any = { queryNumber: currentQueryNumber, query: `Query ${currentQueryNumber}` };
+
+            newMetrics.forEach((newM) => {
+              const idx = updatedMetrics.findIndex((m) => m.moduleName === newM.moduleName);
+              if (idx !== -1) updatedMetrics[idx].metrics = [...updatedMetrics[idx].metrics, ...newM.metrics];
+              else updatedMetrics.push(newM);
+
+              newM.metrics.forEach((m: any) => {
+                const scoreVal = m.score <= 1 ? m.score * 100 : m.score;
+                newChartData[m.name] = scoreVal;
+              });
             });
 
-            if (newMetrics.length > 0) {
-                setTqState(prev => {
-                    const updatedMetrics = prev.metrics.map(m => ({ ...m, metrics: [...m.metrics] }));
-                    const currentQueryNumber = prev.liveMetricsHistory.length + 1;
-                    const newChartData: any = { queryNumber: currentQueryNumber, query: `Query ${currentQueryNumber}` };
-                    
-                    newMetrics.forEach(newM => {
-                        const idx = updatedMetrics.findIndex(m => m.moduleName === newM.moduleName);
-                        if (idx !== -1) updatedMetrics[idx].metrics = [...updatedMetrics[idx].metrics, ...newM.metrics];
-                        else updatedMetrics.push(newM);
-                        
-                        newM.metrics.forEach((m: any) => {
-                            const scoreVal = m.score <= 1 ? m.score * 100 : m.score;
-                            newChartData[m.name] = scoreVal;
-                        });
-                    });
-                    
-                    return {
-                        ...prev,
-                        metrics: updatedMetrics,
-                        liveMetricsHistory: [...prev.liveMetricsHistory, newChartData]
-                    };
-                });
-            }
+            return {
+              ...prev,
+              metrics: updatedMetrics,
+              liveMetricsHistory: [...prev.liveMetricsHistory, newChartData],
+            };
+          });
         }
       }
     };
@@ -111,7 +128,7 @@ export const TestQueryPage: React.FC = () => {
     socket.on('rag-result-data', handleRagResult);
 
     const interval = setInterval(() => {
-        if (modulePairs.length === 0) socket.send({ topic: 'get-module-pairs' });
+      if (modulePairs.length === 0) socket.send({ topic: 'get-module-pairs' });
     }, 2000);
 
     return () => {
@@ -120,10 +137,11 @@ export const TestQueryPage: React.FC = () => {
       socket.off('rag-result-data', handleRagResult);
       clearInterval(interval);
     };
-  }, [modulePairs.length, setTqState]);
+  }, [modulePairs.length, setTqState, modulePairs]);
 
   /**
-   * modulePairs와 moduleStatuses를 기반으로 그래프 레이아웃(노드/엣지)을 계산하여 상태로 설정합니다.
+   * 수신된 모듈 간 연결 정보(modulePairs)를 바탕으로 그래프 노드와 엣지를 생성합니다.
+   * 위상 정렬과 유사한 로직을 사용하여 노드의 Y 좌표 레벨을 결정합니다.
    */
   useEffect(() => {
     if (modulePairs.length === 0) return;
@@ -131,73 +149,77 @@ export const TestQueryPage: React.FC = () => {
     const graph: Record<string, string[]> = {};
     const allModules = new Set<string>();
     modulePairs.forEach(([from, to]) => {
-        if (!graph[from]) graph[from] = [];
-        graph[from].push(to);
-        allModules.add(from);
-        allModules.add(to);
+      if (!graph[from]) graph[from] = [];
+      graph[from].push(to);
+      allModules.add(from);
+      allModules.add(to);
     });
 
     const levels: Record<string, number> = {};
     const queue: { id: string; level: number }[] = [];
-    
-    const targets = new Set(modulePairs.map(p => p[1]));
-    const starts = Array.from(allModules).filter(m => !targets.has(m));
+
+    const targets = new Set(modulePairs.map((p) => p[1]));
+    const starts = Array.from(allModules).filter((m) => !targets.has(m));
     if (starts.length === 0 && allModules.size > 0) starts.push(Array.from(allModules)[0]);
-    starts.forEach(id => queue.push({ id, level: 0 }));
+    starts.forEach((id) => queue.push({ id, level: 0 }));
 
-    while(queue.length > 0) {
-        const { id, level } = queue.shift()!;
-        if (levels[id] !== undefined) continue;
-        levels[id] = level;
-        (graph[id] || []).forEach(next => queue.push({ id: next, level: level + 1 }));
+    while (queue.length > 0) {
+      const { id, level } = queue.shift()!;
+      if (levels[id] !== undefined) continue;
+      levels[id] = level;
+      (graph[id] || []).forEach((next) => queue.push({ id: next, level: level + 1 }));
     }
-    allModules.forEach(m => { if (levels[m] === undefined) levels[m] = 0; });
+    allModules.forEach((m) => {
+      if (levels[m] === undefined) levels[m] = 0;
+    });
 
-    const newNodes: Node[] = Array.from(allModules).map(mod => {
-        const level = levels[mod];
-        const xOffset = (mod.charCodeAt(0) % 2) * 50; 
-        return {
-            id: mod,
-            type: 'moduleNode',
-            position: { x: xOffset, y: level * 150 },
-            data: { 
-                label: mod, 
-                status: tqState.moduleStatuses[mod] || 'pending' 
-            },
-            draggable: false
-        };
+    const newNodes: Node[] = Array.from(allModules).map((mod) => {
+      const level = levels[mod];
+      const xOffset = (mod.charCodeAt(0) % 2) * 50;
+      return {
+        id: mod,
+        type: 'moduleNode',
+        position: { x: xOffset, y: level * 150 },
+        data: {
+          label: mod,
+          status: tqState.moduleStatuses[mod] || 'pending',
+        },
+        draggable: false,
+      };
     });
 
     const newEdges: Edge[] = modulePairs.map(([source, target]) => {
-        const isLoop = (levels[target] || 0) <= (levels[source] || 0);
-        return {
-            id: `${source}-${target}`,
-            source,
-            target,
-            type: isLoop ? 'default' : 'smoothstep',
-            animated: false,
-            markerEnd: { 
-                type: MarkerType.ArrowClosed, 
-                color: isLoop ? '#f87171' : '#9ca3af' 
-            },
-            style: { 
-                stroke: isLoop ? '#f87171' : '#9ca3af', 
-                strokeWidth: 2,
-                strokeDasharray: isLoop ? '5,5' : undefined 
-            },
-            zIndex: isLoop ? 10 : 0,
-            label: isLoop ? 'Loop' : undefined,
-            labelStyle: { fill: '#f87171', fontWeight: 700 }
-        };
+      const isLoop = (levels[target] || 0) <= (levels[source] || 0);
+      return {
+        id: `${source}-${target}`,
+        source,
+        target,
+        type: isLoop ? 'default' : 'smoothstep',
+        animated: false,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: isLoop ? '#f87171' : '#9ca3af',
+        },
+        style: {
+          stroke: isLoop ? '#f87171' : '#9ca3af',
+          strokeWidth: 2,
+          strokeDasharray: isLoop ? '5,5' : undefined,
+        },
+        zIndex: isLoop ? 10 : 0,
+        label: isLoop ? 'Loop' : undefined,
+        labelStyle: { fill: '#f87171', fontWeight: 700 },
+      };
     });
 
     setNodes(newNodes);
     setEdges(newEdges);
-
   }, [modulePairs, tqState.moduleStatuses]);
 
   /**
-   * 사용자가 전송한 쿼리를 처리하고 소켓으로 전송합니다.
+   * 사용자가 입력한 쿼리를 서버로 전송하여 RAG 파이프라인 테스트를 시작합니다.
+   * 채팅창에 사용자 메시지를 추가하고, 이전 상태를 초기화합니다.
+   *
+   * @param e 폼 전송 이벤트
    */
   const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -205,18 +227,18 @@ export const TestQueryPage: React.FC = () => {
     const query = input.value;
     if (!query) return;
 
-    setTqState(prev => ({
+    setTqState((prev) => ({
       ...prev,
       messages: [...prev.messages, { sender: 'user', text: query }],
       moduleStatuses: {},
-      activeConnections: []
+      activeConnections: [],
     }));
     socket.send({ topic: 'test-query', query });
     input.value = '';
   };
 
   /**
-   * 뷰 상태를 초기화합니다.
+   * 화면의 모든 평가 데이터와 채팅 기록을 초기화합니다.
    */
   const handleReset = () => {
     setTqState({ messages: [], metrics: [], moduleStatuses: {}, liveMetricsHistory: [], activeConnections: [] });
@@ -229,7 +251,7 @@ export const TestQueryPage: React.FC = () => {
     <TestQueryView
       nodes={nodes}
       edges={edges}
-      onNodesChange={() => {}} 
+      onNodesChange={() => {}}
       onEdgesChange={() => {}}
       messages={tqState.messages}
       handleSendMessage={handleSendMessage}
