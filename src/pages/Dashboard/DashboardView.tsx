@@ -189,7 +189,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 <S.QueryText title={q.query}>Query: {q.query}</S.QueryText>
                                 <S.ScoreWrapper>
                                   <S.MetricName>{zoomedMetric}</S.MetricName>
-                                  <S.ScoreText>{(q.score * 100).toFixed(1)}%</S.ScoreText>
+                                  <S.ScoreText>{(q.score).toFixed(1)}%</S.ScoreText>
                                 </S.ScoreWrapper>
                               </S.QueryItem>
                             ))}

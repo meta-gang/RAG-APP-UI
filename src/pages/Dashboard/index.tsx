@@ -10,11 +10,6 @@ import { QueryEvaluation } from '../../globals/types';
 
 /**
  * 연속적으로 데이터가 없는 구간을 요약하여 차트 데이터 배열을 압축합니다.
- *
- * @param data - 원본 차트 데이터
- * @param allModuleNames - 모든 모듈 이름
- * @param keyCheck - 데이터 존재 여부 판별 콜백
- * @returns 압축된 데이터 배열
  */
 const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (item: any) => boolean) => {
   const compressedData = [];
@@ -22,6 +17,7 @@ const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (ite
   for (let i = 0; i < data.length; i++) {
     if (keyCheck(data[i])) {
       if (consecutiveNulls > 2) {
+        // 생략된 데이터에도 timestamp 키가 없으면 에러가 날 수 있으므로 주의, 여기선 시각화용이라 무방
         const ellipsisEntry: any = { date: `... (${consecutiveNulls} omitted)` };
         allModuleNames.forEach((name) => {
           ellipsisEntry[name] = null;
@@ -49,7 +45,7 @@ export const DashboardPage: React.FC = () => {
   const setDashboardResult = useSetRecoilState(dashboardResultState);
   const setAppLoading = useSetRecoilState(appLoadingState);
 
-  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [selectedTimestamp, setSelectedTimestamp] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<string>('');
   const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
   const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
@@ -59,11 +55,11 @@ export const DashboardPage: React.FC = () => {
   useEffect(() => {
     if (evaluationRuns.length > 0) {
       const lastRun = evaluationRuns[evaluationRuns.length - 1];
-      if (!selectedDate) setSelectedDate(lastRun.date);
+      if (!selectedTimestamp) setSelectedTimestamp(lastRun.timestamp);
       if (!selectedModule && lastRun.modules.length > 0) setSelectedModule(lastRun.modules[0].moduleName);
       setIsDataLoaded(true);
     }
-  }, [evaluationRuns, selectedDate, selectedModule]);
+  }, [evaluationRuns, selectedTimestamp, selectedModule]);
 
   useEffect(() => {
     if (!isInitialLoad) {
@@ -134,7 +130,7 @@ export const DashboardPage: React.FC = () => {
       ...prev,
       isLoading: true,
       message: 'Fetching History...',
-    }));    
+    }));        
     
 
     return () => {
@@ -224,9 +220,13 @@ export const DashboardPage: React.FC = () => {
   }, [evaluationRuns]);
 
   const selectedRun = useMemo(
-    () => evaluationRuns.find((run) => run.date === selectedDate),
-    [selectedDate, evaluationRuns]
+    () => evaluationRuns.find((run) => run.timestamp === selectedTimestamp),
+    [selectedTimestamp, evaluationRuns]
   );
+  
+  // selectedRun이 결정되면 date값도 가져올 수 있습니다. View에 넘겨주기 위해 계산
+  const displayDate = selectedRun ? selectedRun.date : '';
+
   const selectedModuleData = useMemo(
     () => selectedRun?.modules.find((m) => m.moduleName === selectedModule),
     [selectedRun, selectedModule]
@@ -234,7 +234,10 @@ export const DashboardPage: React.FC = () => {
 
   const modulePerformanceData = useMemo(() => {
     const rawData = evaluationRuns.map((run) => {
-      const entry: { date: string; [key: string]: number | string | null } = { date: run.date };
+      const entry: { date: string; timestamp: string; [key: string]: number | string | null } = { 
+        date: run.date,
+        timestamp: run.timestamp
+      };
       let hasData = false;
       allModuleNames.forEach((moduleName) => {
         const module = run.modules.find((m) => m.moduleName === moduleName);
@@ -348,10 +351,14 @@ export const DashboardPage: React.FC = () => {
   }, [selectedModuleData, zoomedMetric, selectedScoreRange]);
 
   const handleDotClick = (payload: any) => {
-    if (payload && payload.dataKey && payload.payload?.date && !payload.payload.date.startsWith('...')) {
-      setSelectedDate(payload.payload.date);
-      setSelectedModule(payload.dataKey);
-      setZoomedMetric(null);
+    if (payload && payload.dataKey && payload.payload) {
+      const clickedData = payload.payload;
+      
+      if (clickedData.timestamp && !clickedData.date.startsWith('...')) {
+        setSelectedTimestamp(clickedData.timestamp);
+        setSelectedModule(payload.dataKey);
+        setZoomedMetric(null);
+      }
     }
   };
 
@@ -406,7 +413,7 @@ export const DashboardPage: React.FC = () => {
     <DashboardView
       kpiData={kpiData}
       zoomedMetric={zoomedMetric}
-      selectedDate={selectedDate}
+      selectedDate={displayDate}
       selectedModule={selectedModule}
       zoomedFrequencyData={zoomedFrequencyData}
       modulePerformanceData={modulePerformanceData}
