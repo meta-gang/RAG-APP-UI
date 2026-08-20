@@ -36,6 +36,9 @@ module.exports = merge(common, {
     new GenerateSW({
       include: [/\.html$/, /\.js$/],
       maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+      // Workbox uses a random temporary directory in generated source maps.
+      // The service worker itself stays debuggable and deterministic without it.
+      sourcemap: false,
     }),
   ],
   optimization: {

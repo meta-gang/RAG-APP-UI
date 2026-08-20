@@ -16,6 +16,7 @@ import { CHART_COLORS } from '../../globals/styles/color';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Accordion } from '../../components/Accordion';
 import { LiveMetric } from '../../globals/recoil/atoms';
+import { MetricScore } from '../../globals/types';
 import ReactFlow, {
   Controls,
   Background,
@@ -120,7 +121,7 @@ interface TestQueryViewProps {
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   messages: { sender: 'user' | 'bot'; text: string }[];
-  metrics: { moduleName: string; metrics: { name: string; score: number }[] }[];
+  metrics: { moduleName: string; metrics: MetricScore[] }[];
   liveMetricsHistory: LiveMetric[];
   handleSendMessage: (e: React.FormEvent<HTMLFormElement>) => void;
   handleReset: () => void;
@@ -167,6 +168,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
         groupedData[item.moduleName] = {};
       }
       item.metrics.forEach((m) => {
+        if (!m.didEval || m.score === null) return;
         if (!groupedData[item.moduleName][m.name]) {
           groupedData[item.moduleName][m.name] = [];
         }
@@ -236,17 +238,21 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             </div>
           )}
           {(metrics || []).map((moduleData, idx) => {
-            const count = (moduleData.metrics || []).length;
+            const evaluatedMetrics = (moduleData.metrics || []).filter(
+              (metric): metric is MetricScore & { score: number } => metric.didEval && metric.score !== null,
+            );
+            const count = evaluatedMetrics.length;
+            const totalCount = (moduleData.metrics || []).length;
             const avgScore =
-              count > 0 ? (moduleData.metrics || []).reduce((sum, m) => sum + m.score, 0) / count : 0;
+              count > 0 ? evaluatedMetrics.reduce((sum, m) => sum + m.score, 0) / count : null;
 
-            const displayAvg = formatScore(avgScore);
+            const displayAvg = avgScore === null ? 'Not evaluated' : `${formatScore(avgScore)}%`;
 
             const accordionTitle = (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
                 <span style={{ color: '#FFFFFF' }}>{moduleData.moduleName}</span>
                 <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                  Avg: {displayAvg}% <small>({count} runs)</small>
+                  Avg: {displayAvg} <small>({count}/{totalCount} evaluated)</small>
                 </span>
               </div>
             );
@@ -256,7 +262,11 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
                 {(moduleData.metrics || []).map((metric, metricIndex) => (
                   <S.TableRow key={metricIndex}>
                     <span>- {metric.name}</span>
-                    <span>{formatScore(metric.score)}%</span>
+                    <span>
+                      {metric.didEval && metric.score !== null
+                        ? `${formatScore(metric.score)}%`
+                        : 'Not evaluated'}
+                    </span>
                   </S.TableRow>
                 ))}
               </Accordion>

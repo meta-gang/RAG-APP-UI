@@ -1,7 +1,6 @@
 // src/globals/recoil/atoms.ts
 import { DefaultNavInfo } from '@type/defaults';
-import { EvaluationRun } from '@type/index';
-import { NavInfo } from '@type/index';
+import { EvaluationRun, MetricScore, NavInfo } from '@type/index';
 import { atom } from 'recoil';
 import { recoilPersist } from 'recoil-persist';
 
@@ -38,7 +37,7 @@ export interface LiveMetric {
  */
 interface TestQueryState {
   messages: { sender: 'user' | 'bot'; text: string }[]; // 채팅 메시지 목록
-  metrics: { moduleName: string; metrics: { name: string; score: number }[] }[]; // 모듈별 메트릭 결과
+  metrics: { moduleName: string; metrics: MetricScore[] }[]; // 모듈별 메트릭 결과
   moduleStatuses: Record<string, ModuleStatus>; // 각 모듈의 현재 상태
   liveMetricsHistory: LiveMetric[]; // 차트용 히스토리 데이터
   activeConnections: [string, string][]; // 그래프에서 활성화된 엣지(연결선)

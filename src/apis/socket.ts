@@ -9,7 +9,7 @@ class SocketClient {
   private messageQueue: any[] = [];
 
   constructor() {
-    this.url = 'ws://127.0.0.1:8081';
+    this.url = process.env.REACT_APP_WS_URL || 'ws://127.0.0.1:8081';
   }
 
   private getTime() {

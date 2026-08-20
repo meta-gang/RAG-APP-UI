@@ -5,6 +5,7 @@ import { MarkerType, Node, Edge } from 'reactflow';
 import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { socket } from '../../apis/socket';
+import { normalizeMetric } from '../Dashboard/transformData';
 
 /**
  * TestQueryPage 컴포넌트
@@ -75,10 +76,7 @@ export const TestQueryPage: React.FC = () => {
             if (Array.isArray(snapshots) && snapshots.length > 0) {
               const snap = snapshots[0];
               if (snap.performances) {
-                const scores = snap.performances.map((p: any) => ({
-                  name: p.metric || p._Performance__metric || 'Unknown',
-                  score: p.score !== undefined ? p.score : (p._Performance__score !== undefined ? p._Performance__score : 0),
-                }));
+                const scores = snap.performances.map((p: any) => normalizeMetric(p));
                 if (scores.length > 0) newMetrics.push({ moduleName, metrics: scores });
               }
             }
@@ -86,10 +84,7 @@ export const TestQueryPage: React.FC = () => {
         }
 
         if (lastState.performances && Array.isArray(lastState.performances) && lastState.performances.length > 0) {
-          const e2eScores = lastState.performances.map((p: any) => ({
-            name: p.metric || p._Performance__metric || 'Unknown',
-            score: p.score !== undefined ? p.score : (p._Performance__score !== undefined ? p._Performance__score : 0),
-          }));
+          const e2eScores = lastState.performances.map((p: any) => normalizeMetric(p, 'Unknown E2E'));
 
           if (e2eScores.length > 0) {
             newMetrics.push({ moduleName: 'E2E-Metrics', metrics: e2eScores });
@@ -108,6 +103,7 @@ export const TestQueryPage: React.FC = () => {
               else updatedMetrics.push(newM);
 
               newM.metrics.forEach((m: any) => {
+                if (!m.didEval || m.score === null) return;
                 const scoreVal = m.score <= 1 ? m.score * 100 : m.score;
                 newChartData[m.name] = scoreVal;
               });

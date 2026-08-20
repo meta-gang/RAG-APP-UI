@@ -4,7 +4,8 @@
  */
 export type MetricScore = {
     name: string; // 예: "Context-Relevancy"
-    score: number; // 0.0 ~ 1.0 사이의 값
+    score: number | null; // 평가 실패/미실행이면 null
+    didEval: boolean; // 실제 평가가 성공적으로 수행되었는지 여부
 };
 
 /**
@@ -25,6 +26,30 @@ export type ModuleEvaluation = {
     isStarter?: boolean; // Starter 모듈 여부 (true일 경우 그래프에서 제외)
 };
 
+export type EvaluatorHealth = {
+  evaluated: number;
+  notEvaluated: number;
+  coverage: number | null;
+};
+
+export type DiagnosticObservation = {
+  code: string;
+  stage: string;
+  message: string;
+  module?: string;
+  metric?: string;
+  query?: string;
+  failureType?: string;
+};
+
+export type DiagnosticInference = {
+  code: string;
+  possibleCause: string;
+  confidence: 'high' | 'medium' | 'low';
+  nextAction: string;
+  query?: string;
+};
+
 /**
  * @description 특정 날짜에 실행된 전체 RAG 평가 실행 단위를 나타냅니다.
  */
@@ -32,6 +57,10 @@ export type EvaluationRun = {
     date: string; // 평가 실행 날짜 (예: "09-21")
     timestamp: string; // 원본 타임스탬프 (예: "251130212120") - 정렬용
     modules: ModuleEvaluation[]; // 해당 실행에 포함된 모듈들의 평가 결과 목록
+    evaluatorHealth: EvaluatorHealth;
+    observations: DiagnosticObservation[];
+    inferences: DiagnosticInference[];
+    configFingerprint: string | null;
 };
 
 /**

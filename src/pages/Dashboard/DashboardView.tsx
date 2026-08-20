@@ -8,12 +8,18 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
+import type {
+  DiagnosticInference,
+  DiagnosticObservation,
+  EvaluatorHealth,
+} from '../../globals/types';
 
 interface DashboardViewProps {
   kpiData: {
     overallScore: string;
     performanceChange: { value: string; isPositive: boolean; };
     worstModule: string;
+    evaluatorCoverage: string;
   };
   zoomedMetric: string | null;
   selectedDate: string;
@@ -30,6 +36,10 @@ interface DashboardViewProps {
   handleZoomClick: (metricName: string) => void;
   handleZoomOut: () => void;
   allModuleNames: string[];
+  evaluatorHealth?: EvaluatorHealth;
+  diagnosticObservations: DiagnosticObservation[];
+  diagnosticInferences: DiagnosticInference[];
+  configFingerprint: string | null;
 }
 
 /**
@@ -40,7 +50,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     kpiData, zoomedMetric, selectedDate, selectedModule, zoomedFrequencyData,
     modulePerformanceData, handleDotClick, handleFrequencyBarClick, moduleColors,
     detailedQueryData, selectedScoreRange, metricDistributionData,
-    handleZoomClick, handleZoomOut, allModuleNames, metricPerformanceBreakdownData
+    handleZoomClick, handleZoomOut, allModuleNames, metricPerformanceBreakdownData,
+    evaluatorHealth, diagnosticObservations, diagnosticInferences, configFingerprint
 }) => {
   return (
     <S.DashboardContainer>
@@ -63,6 +74,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </SwiperSlide>
           <SwiperSlide>
             <KPICard title="Lowest Module" value={kpiData.worstModule} />
+          </SwiperSlide>
+          <SwiperSlide>
+            <KPICard title="Evaluator Coverage" value={kpiData.evaluatorCoverage} />
           </SwiperSlide>
         </Swiper>
         <S.CarouselArrow className="arrow-left"><ChevronLeft size={20} /></S.CarouselArrow>
@@ -201,6 +215,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </S.ModalOverlay>
         )}
       </AnimatePresence>
+
+      <div>
+        <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>Evaluation Diagnostics</S.BoxTitle>
+        <S.GridContainer>
+          <S.MainChartWrapper>
+            <S.ChartBox>
+              <S.BoxTitleH3>Observed evidence</S.BoxTitleH3>
+              <S.QueryInfoText>
+                Runtime facts only. Configuration: {configFingerprint || 'legacy / unavailable'}
+              </S.QueryInfoText>
+              <S.ScrollableContent style={{ height: '220px' }}>
+                {diagnosticObservations.length === 0 ? (
+                  <S.NoDataText>No runtime failures were observed for this run.</S.NoDataText>
+                ) : diagnosticObservations.map((observation, index) => (
+                  <S.QueryItem key={`${observation.code}-${index}`}>
+                    <S.QueryText>{observation.code}</S.QueryText>
+                    <S.QueryInfoText>{observation.message}</S.QueryInfoText>
+                    <S.QueryInfoText>
+                      {[observation.stage, observation.module, observation.metric].filter(Boolean).join(' · ')}
+                    </S.QueryInfoText>
+                  </S.QueryItem>
+                ))}
+              </S.ScrollableContent>
+            </S.ChartBox>
+          </S.MainChartWrapper>
+          <S.SidePanelWrapper>
+            <S.ChartBox>
+              <S.BoxTitleH3>Possible causes (inferred)</S.BoxTitleH3>
+              <S.QueryInfoText>
+                These are hypotheses, not confirmed root causes. Evaluated: {evaluatorHealth?.evaluated || 0},
+                not evaluated: {evaluatorHealth?.notEvaluated || 0}.
+              </S.QueryInfoText>
+              <S.ScrollableContent style={{ height: '220px' }}>
+                {diagnosticInferences.length === 0 ? (
+                  <S.NoDataText>No cause inference was produced.</S.NoDataText>
+                ) : diagnosticInferences.map((inference, index) => (
+                  <S.QueryItem key={`${inference.code}-${index}`}>
+                    <S.QueryText>{inference.possibleCause}</S.QueryText>
+                    <S.QueryInfoText>Confidence: {inference.confidence}</S.QueryInfoText>
+                    <S.QueryInfoText>Next: {inference.nextAction}</S.QueryInfoText>
+                  </S.QueryItem>
+                ))}
+              </S.ScrollableContent>
+            </S.ChartBox>
+          </S.SidePanelWrapper>
+        </S.GridContainer>
+      </div>
       
       <div>
         <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>Metric Performance Breakdown</S.BoxTitle>

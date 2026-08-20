@@ -2,7 +2,6 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const path = require('path');
 const webpack = require('webpack');
 const dotenv = require('dotenv');
-const {GenerateSW} = require('workbox-webpack-plugin');
 
 dotenv.config();
 
@@ -40,7 +39,9 @@ module.exports = {
       process: 'process/browser.js',
     }),
     new webpack.DefinePlugin({
-      'process.env': JSON.stringify(process.env),
+      'process.env.REACT_APP_WS_URL': JSON.stringify(
+        process.env.REACT_APP_WS_URL || 'ws://127.0.0.1:8081',
+      ),
     })
   ],
   resolve: {

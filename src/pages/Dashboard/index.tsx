@@ -6,7 +6,10 @@ import { socket } from '../../apis/socket';
 import { DashboardView } from './DashboardView';
 import { transformData } from './transformData';
 import { CHART_COLORS } from '../../globals/styles/color';
-import { QueryEvaluation } from '../../globals/types';
+import { MetricScore, QueryEvaluation } from '../../globals/types';
+
+const isEvaluatedMetric = (metric: MetricScore): metric is MetricScore & { score: number } =>
+  metric.didEval && metric.score !== null && Number.isFinite(metric.score);
 
 /**
  * 연속적으로 데이터가 없는 구간을 요약하여 차트 데이터 배열을 압축합니다.
@@ -152,9 +155,17 @@ export const DashboardPage: React.FC = () => {
 
   const kpiData = useMemo(() => {
     if (evaluationRuns.length === 0)
-      return { overallScore: 'N/A', performanceChange: { value: 'N/A', isPositive: true }, worstModule: 'N/A' };
+      return {
+        overallScore: 'N/A',
+        performanceChange: { value: 'N/A', isPositive: true },
+        worstModule: 'N/A',
+        evaluatorCoverage: 'N/A',
+      };
 
     const latestRun = evaluationRuns[evaluationRuns.length - 1];
+    const evaluatorCoverage = latestRun.evaluatorHealth.coverage === null
+      ? 'N/A'
+      : `${(latestRun.evaluatorHealth.coverage * 100).toFixed(1)}%`;
     let totalScore = 0,
       metricCount = 0;
 
@@ -162,6 +173,7 @@ export const DashboardPage: React.FC = () => {
       if (!m.isStarter) {
         m.queries.forEach((q) =>
           q.metrics.forEach((metric) => {
+            if (!isEvaluatedMetric(metric)) return;
             totalScore += metric.score;
             metricCount++;
           })
@@ -169,9 +181,9 @@ export const DashboardPage: React.FC = () => {
       }
     });
 
-    const overallScore = metricCount > 0 ? `${(totalScore / metricCount).toFixed(1)}%` : '0%';
+    const overallScore = metricCount > 0 ? `${(totalScore / metricCount).toFixed(1)}%` : 'N/E';
 
-    let performanceChange = { value: '+0.0%', isPositive: true };
+    let performanceChange = { value: 'N/A', isPositive: true };
     if (evaluationRuns.length > 1) {
       const previousRun = evaluationRuns[evaluationRuns.length - 2];
       let prevTotalScore = 0,
@@ -181,6 +193,7 @@ export const DashboardPage: React.FC = () => {
         if (!m.isStarter) {
           m.queries.forEach((q) =>
             q.metrics.forEach((metric) => {
+              if (!isEvaluatedMetric(metric)) return;
               prevTotalScore += metric.score;
               prevMetricCount++;
             })
@@ -188,10 +201,12 @@ export const DashboardPage: React.FC = () => {
         }
       });
 
-      const latestAvg = metricCount > 0 ? totalScore / metricCount : 0;
-      const prevAvg = prevMetricCount > 0 ? prevTotalScore / prevMetricCount : 0;
-      const change = latestAvg - prevAvg;
-      performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
+      if (metricCount > 0 && prevMetricCount > 0) {
+        const latestAvg = totalScore / metricCount;
+        const prevAvg = prevTotalScore / prevMetricCount;
+        const change = latestAvg - prevAvg;
+        performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
+      }
     }
 
     let worstModule = 'N/A',
@@ -204,19 +219,21 @@ export const DashboardPage: React.FC = () => {
 
       module.queries.forEach((q) =>
         q.metrics.forEach((m) => {
+          if (!isEvaluatedMetric(m)) return;
           moduleTotalScore += m.score;
           moduleMetricCount++;
         })
       );
 
-      const moduleAvgScore = moduleMetricCount > 0 ? moduleTotalScore / moduleMetricCount : 0;
+      if (moduleMetricCount === 0) return;
+      const moduleAvgScore = moduleTotalScore / moduleMetricCount;
       if (moduleAvgScore < minScore) {
         minScore = moduleAvgScore;
         worstModule = module.moduleName;
       }
     });
 
-    return { overallScore, performanceChange, worstModule };
+    return { overallScore, performanceChange, worstModule, evaluatorCoverage };
   }, [evaluationRuns]);
 
   const selectedRun = useMemo(
@@ -244,13 +261,15 @@ export const DashboardPage: React.FC = () => {
         if (!module || module.isStarter || module.queries.length === 0) {
           entry[moduleName] = null;
         } else {
+          const scores = module.queries.flatMap((query) =>
+            query.metrics.filter(isEvaluatedMetric).map((metric) => metric.score),
+          );
+          if (scores.length === 0) {
+            entry[moduleName] = null;
+            return;
+          }
           hasData = true;
-          const avgScore =
-            module.queries.reduce((sum, q) => {
-              const metricCount = q.metrics.length;
-              if (metricCount === 0) return sum;
-              return sum + q.metrics.reduce((s, m) => s + m.score, 0) / metricCount;
-            }, 0) / module.queries.length;
+          const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
           entry[moduleName] = parseFloat(avgScore.toFixed(2));
         }
       });
@@ -275,10 +294,10 @@ export const DashboardPage: React.FC = () => {
             entry[moduleName] = null;
             return;
           }
-          const scores =
-            (module?.queries
-              .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
-              .filter((s) => s !== undefined) as number[]) || [];
+          const scores = module?.queries.flatMap((query) => {
+            const metric = query.metrics.find((candidate) => candidate.name === metricName);
+            return metric && isEvaluatedMetric(metric) ? [metric.score] : [];
+          }) || [];
           if (scores.length > 0) {
             hasData = true;
             const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
@@ -295,10 +314,10 @@ export const DashboardPage: React.FC = () => {
   }, [allModuleNames, evaluationRuns]);
 
   const getFrequencyData = (queries: QueryEvaluation[], metricName: string) => {
-    const scores = queries
-      .map((q) => q.metrics.find((m) => m.name === metricName)?.score)
-      .filter((s) => s !== undefined)
-      .map((s) => s! * 1); // 점수 스케일에 따라 * 100 또는 * 1 (현재 데이터는 이미 100단위로 보임)
+    const scores = queries.flatMap((query) => {
+      const metric = query.metrics.find((candidate) => candidate.name === metricName);
+      return metric && isEvaluatedMetric(metric) ? [metric.score] : [];
+    });
     const bins = Array.from({ length: 11 }, (_, i) => i * 10);
     const freqMap = bins.slice(0, -1).map((binStart, i) => {
       const binEnd = bins[i + 1];
@@ -332,10 +351,15 @@ export const DashboardPage: React.FC = () => {
 
   const detailedQueryData = useMemo(() => {
     if (!selectedModuleData || !zoomedMetric) return [];
-    let queries = selectedModuleData.queries.filter((q) => q.metrics.some((m) => m.name === zoomedMetric));
+    let queries = selectedModuleData.queries.filter((query) => {
+      const metric = query.metrics.find((candidate) => candidate.name === zoomedMetric);
+      return metric !== undefined && isEvaluatedMetric(metric);
+    });
     if (selectedScoreRange) {
       queries = queries.filter((q) => {
-        const score = q.metrics.find((m) => m.name === zoomedMetric)!.score * 1;
+        const metric = q.metrics.find((m) => m.name === zoomedMetric)!;
+        if (!isEvaluatedMetric(metric)) return false;
+        const score = metric.score;
         return (
           score >= selectedScoreRange[0] &&
           score <= (selectedScoreRange[1] === 100 ? 100 : selectedScoreRange[1] - 0.01)
@@ -343,10 +367,10 @@ export const DashboardPage: React.FC = () => {
       });
     }
     return queries
-      .map((q) => ({
-        query: q.query,
-        score: q.metrics.find((m) => m.name === zoomedMetric)!.score,
-      }))
+      .flatMap((q) => {
+        const metric = q.metrics.find((m) => m.name === zoomedMetric);
+        return metric && isEvaluatedMetric(metric) ? [{ query: q.query, score: metric.score }] : [];
+      })
       .sort((a, b) => b.score - a.score);
   }, [selectedModuleData, zoomedMetric, selectedScoreRange]);
 
@@ -427,6 +451,10 @@ export const DashboardPage: React.FC = () => {
       handleZoomOut={handleZoomOut}
       allModuleNames={allModuleNames}
       metricPerformanceBreakdownData={metricPerformanceBreakdownData}
+      evaluatorHealth={selectedRun?.evaluatorHealth}
+      diagnosticObservations={selectedRun?.observations || []}
+      diagnosticInferences={selectedRun?.inferences || []}
+      configFingerprint={selectedRun?.configFingerprint || null}
     />
   );
 };

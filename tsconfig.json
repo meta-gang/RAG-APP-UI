@@ -28,5 +28,6 @@
       "@recoil/*": ["src/globals/recoil/*"],
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/data/mock*.ts"]
 }
