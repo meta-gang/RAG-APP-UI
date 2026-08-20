@@ -11,6 +11,9 @@ import { MetricScore, QueryEvaluation } from '../../globals/types';
 const isEvaluatedMetric = (metric: MetricScore): metric is MetricScore & { score: number } =>
   metric.didEval && metric.score !== null && Number.isFinite(metric.score);
 
+const metricIdentity = (metric: MetricScore) =>
+  `${metric.name} [${metric.unit || 'unitless'}]`;
+
 /**
  * 연속적으로 데이터가 없는 구간을 요약하여 차트 데이터 배열을 압축합니다.
  */
@@ -156,84 +159,22 @@ export const DashboardPage: React.FC = () => {
   const kpiData = useMemo(() => {
     if (evaluationRuns.length === 0)
       return {
-        overallScore: 'N/A',
-        performanceChange: { value: 'N/A', isPositive: true },
-        worstModule: 'N/A',
+        evaluatedMetrics: 'N/A',
+        notEvaluatedMetrics: 'N/A',
         evaluatorCoverage: 'N/A',
+        traceExecutions: 'N/A',
       };
 
     const latestRun = evaluationRuns[evaluationRuns.length - 1];
     const evaluatorCoverage = latestRun.evaluatorHealth.coverage === null
       ? 'N/A'
       : `${(latestRun.evaluatorHealth.coverage * 100).toFixed(1)}%`;
-    let totalScore = 0,
-      metricCount = 0;
-
-    latestRun.modules.forEach((m) => {
-      if (!m.isStarter) {
-        m.queries.forEach((q) =>
-          q.metrics.forEach((metric) => {
-            if (!isEvaluatedMetric(metric)) return;
-            totalScore += metric.score;
-            metricCount++;
-          })
-        );
-      }
-    });
-
-    const overallScore = metricCount > 0 ? `${(totalScore / metricCount).toFixed(1)}%` : 'N/E';
-
-    let performanceChange = { value: 'N/A', isPositive: true };
-    if (evaluationRuns.length > 1) {
-      const previousRun = evaluationRuns[evaluationRuns.length - 2];
-      let prevTotalScore = 0,
-        prevMetricCount = 0;
-
-      previousRun.modules.forEach((m) => {
-        if (!m.isStarter) {
-          m.queries.forEach((q) =>
-            q.metrics.forEach((metric) => {
-              if (!isEvaluatedMetric(metric)) return;
-              prevTotalScore += metric.score;
-              prevMetricCount++;
-            })
-          );
-        }
-      });
-
-      if (metricCount > 0 && prevMetricCount > 0) {
-        const latestAvg = totalScore / metricCount;
-        const prevAvg = prevTotalScore / prevMetricCount;
-        const change = latestAvg - prevAvg;
-        performanceChange = { value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`, isPositive: change >= 0 };
-      }
-    }
-
-    let worstModule = 'N/A',
-      minScore = Infinity;
-
-    latestRun.modules.forEach((module) => {
-      if (module.isStarter || module.queries.length === 0) return;
-      let moduleTotalScore = 0,
-        moduleMetricCount = 0;
-
-      module.queries.forEach((q) =>
-        q.metrics.forEach((m) => {
-          if (!isEvaluatedMetric(m)) return;
-          moduleTotalScore += m.score;
-          moduleMetricCount++;
-        })
-      );
-
-      if (moduleMetricCount === 0) return;
-      const moduleAvgScore = moduleTotalScore / moduleMetricCount;
-      if (moduleAvgScore < minScore) {
-        minScore = moduleAvgScore;
-        worstModule = module.moduleName;
-      }
-    });
-
-    return { overallScore, performanceChange, worstModule, evaluatorCoverage };
+    return {
+      evaluatedMetrics: latestRun.evaluatorHealth.evaluated.toString(),
+      notEvaluatedMetrics: latestRun.evaluatorHealth.notEvaluated.toString(),
+      evaluatorCoverage,
+      traceExecutions: latestRun.graphHealth.totalExecutions.toString(),
+    };
   }, [evaluationRuns]);
 
   const selectedRun = useMemo(
@@ -261,16 +202,14 @@ export const DashboardPage: React.FC = () => {
         if (!module || module.isStarter || module.queries.length === 0) {
           entry[moduleName] = null;
         } else {
-          const scores = module.queries.flatMap((query) =>
-            query.metrics.filter(isEvaluatedMetric).map((metric) => metric.score),
-          );
-          if (scores.length === 0) {
+          const metrics = module.queries.flatMap((query) => query.metrics);
+          if (metrics.length === 0) {
             entry[moduleName] = null;
             return;
           }
           hasData = true;
-          const avgScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
-          entry[moduleName] = parseFloat(avgScore.toFixed(2));
+          const evaluatedCount = metrics.filter(isEvaluatedMetric).length;
+          entry[moduleName] = parseFloat(((evaluatedCount / metrics.length) * 100).toFixed(2));
         }
       });
       return { ...entry, _hasData: hasData };
@@ -282,7 +221,7 @@ export const DashboardPage: React.FC = () => {
     const breakdown: { [metricName: string]: any[] } = {};
     const allMetrics = new Set<string>();
     evaluationRuns.forEach((r) =>
-      r.modules.forEach((m) => m.queries.forEach((q) => q.metrics.forEach((metric) => allMetrics.add(metric.name))))
+      r.modules.forEach((m) => m.queries.forEach((q) => q.metrics.forEach((metric) => allMetrics.add(metricIdentity(metric)))))
     );
     allMetrics.forEach((metricName) => {
       const rawData = evaluationRuns.map((run) => {
@@ -295,7 +234,7 @@ export const DashboardPage: React.FC = () => {
             return;
           }
           const scores = module?.queries.flatMap((query) => {
-            const metric = query.metrics.find((candidate) => candidate.name === metricName);
+            const metric = query.metrics.find((candidate) => metricIdentity(candidate) === metricName);
             return metric && isEvaluatedMetric(metric) ? [metric.score] : [];
           }) || [];
           if (scores.length > 0) {
@@ -315,27 +254,35 @@ export const DashboardPage: React.FC = () => {
 
   const getFrequencyData = (queries: QueryEvaluation[], metricName: string) => {
     const scores = queries.flatMap((query) => {
-      const metric = query.metrics.find((candidate) => candidate.name === metricName);
+      const metric = query.metrics.find((candidate) => metricIdentity(candidate) === metricName);
       return metric && isEvaluatedMetric(metric) ? [metric.score] : [];
     });
-    const bins = Array.from({ length: 11 }, (_, i) => i * 10);
-    const freqMap = bins.slice(0, -1).map((binStart, i) => {
-      const binEnd = bins[i + 1];
-      const count = scores.filter((s) => s >= binStart && s < binEnd).length;
-      return { range: `${binStart}-${binEnd}`, count };
-    });
-    const lastBin = freqMap[freqMap.length - 1];
-    if (lastBin) {
-      lastBin.count += scores.filter((s) => s === 100).length;
-      lastBin.range = `90-100`;
+    if (scores.length === 0) return [];
+    const minimum = Math.min(...scores);
+    const maximum = Math.max(...scores);
+    if (minimum === maximum) {
+      return [{ range: minimum.toPrecision(4), start: minimum, end: maximum, count: scores.length }];
     }
-    return freqMap;
+    const width = (maximum - minimum) / 10;
+    return Array.from({ length: 10 }, (_, index) => {
+      const start = minimum + width * index;
+      const end = index === 9 ? maximum : minimum + width * (index + 1);
+      const count = scores.filter((score) =>
+        score >= start && (index === 9 ? score <= end : score < end)
+      ).length;
+      return {
+        range: `${start.toPrecision(3)}–${end.toPrecision(3)}`,
+        start,
+        end,
+        count,
+      };
+    });
   };
 
   const metricDistributionData = useMemo(() => {
     if (!selectedModuleData) return [];
     const metricNames = selectedModuleData.queries.reduce((acc, q) => {
-      q.metrics.forEach((m) => acc.add(m.name));
+      q.metrics.forEach((m) => acc.add(metricIdentity(m)));
       return acc;
     }, new Set<string>());
     return Array.from(metricNames).map((name) => ({
@@ -352,24 +299,26 @@ export const DashboardPage: React.FC = () => {
   const detailedQueryData = useMemo(() => {
     if (!selectedModuleData || !zoomedMetric) return [];
     let queries = selectedModuleData.queries.filter((query) => {
-      const metric = query.metrics.find((candidate) => candidate.name === zoomedMetric);
+      const metric = query.metrics.find((candidate) => metricIdentity(candidate) === zoomedMetric);
       return metric !== undefined && isEvaluatedMetric(metric);
     });
     if (selectedScoreRange) {
       queries = queries.filter((q) => {
-        const metric = q.metrics.find((m) => m.name === zoomedMetric)!;
+        const metric = q.metrics.find((m) => metricIdentity(m) === zoomedMetric)!;
         if (!isEvaluatedMetric(metric)) return false;
         const score = metric.score;
         return (
           score >= selectedScoreRange[0] &&
-          score <= (selectedScoreRange[1] === 100 ? 100 : selectedScoreRange[1] - 0.01)
+          score <= selectedScoreRange[1]
         );
       });
     }
     return queries
       .flatMap((q) => {
-        const metric = q.metrics.find((m) => m.name === zoomedMetric);
-        return metric && isEvaluatedMetric(metric) ? [{ query: q.query, score: metric.score }] : [];
+        const metric = q.metrics.find((m) => metricIdentity(m) === zoomedMetric);
+        return metric && isEvaluatedMetric(metric)
+          ? [{ query: q.query, score: metric.score, unit: metric.unit }]
+          : [];
       })
       .sort((a, b) => b.score - a.score);
   }, [selectedModuleData, zoomedMetric, selectedScoreRange]);
@@ -386,12 +335,14 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
-  const handleZoomClick = (metricName: string) => setZoomedMetric(metricName);
+  const handleZoomClick = (metricName: string) => {
+    setZoomedMetric(metricName);
+    setSelectedScoreRange(null);
+  };
   const handleZoomOut = () => setZoomedMetric(null);
   const handleFrequencyBarClick = (data: any) => {
-    if (data && data.range) {
-      const [start, end] = data.range.split('-').map(Number);
-      setSelectedScoreRange([start, end]);
+    if (data && typeof data.start === 'number' && typeof data.end === 'number') {
+      setSelectedScoreRange([data.start, data.end]);
     }
   };
 
@@ -455,6 +406,8 @@ export const DashboardPage: React.FC = () => {
       diagnosticObservations={selectedRun?.observations || []}
       diagnosticInferences={selectedRun?.inferences || []}
       configFingerprint={selectedRun?.configFingerprint || null}
+      executionTrace={selectedRun?.executionTrace || []}
+      graphHealth={selectedRun?.graphHealth}
     />
   );
 };

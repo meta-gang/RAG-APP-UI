@@ -30,15 +30,13 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 /**
- * 점수를 퍼센트 형식(소수점 1자리) 문자열로 포맷팅합니다.
- * 점수가 1.0 이하인 경우 100을 곱하여 백분율로 변환합니다.
+ * 백엔드가 선언한 원래 점수와 단위를 그대로 포맷팅합니다.
  *
  * @param score 원본 점수
  * @returns 포맷된 문자열
  */
-const formatScore = (score: number): string => {
-  const finalScore = score <= 1 ? score * 100 : score;
-  return finalScore.toFixed(1);
+const formatScore = (metric: MetricScore & { score: number }): string => {
+  return `${metric.score.toPrecision(4)}${metric.unit ? ` ${metric.unit}` : ''}`;
 };
 
 /**
@@ -169,25 +167,31 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       }
       item.metrics.forEach((m) => {
         if (!m.didEval || m.score === null) return;
-        if (!groupedData[item.moduleName][m.name]) {
-          groupedData[item.moduleName][m.name] = [];
+        const metricLabel = `${m.name} [${m.unit || 'unitless'}]`;
+        if (!groupedData[item.moduleName][metricLabel]) {
+          groupedData[item.moduleName][metricLabel] = [];
         }
-        groupedData[item.moduleName][m.name].push(m.score);
+        groupedData[item.moduleName][metricLabel].push(m.score);
       });
     });
 
     return Object.entries(groupedData).map(([moduleName, metricMap]) => {
       const processedMetrics = Object.entries(metricMap).map(([metricName, scores]) => {
-        const ranges = Array.from({ length: 10 }, (_, i) => ({
-          range: `${i * 10}-${(i + 1) * 10}`,
-          count: 0,
-        }));
-
-        scores.forEach((score) => {
-          const normalizedScore = score <= 1 ? score * 100 : score;
-          const idx = Math.min(Math.floor(normalizedScore / 10), 9);
-          ranges[idx].count++;
-        });
+        const minimum = Math.min(...scores);
+        const maximum = Math.max(...scores);
+        const ranges = minimum === maximum
+          ? [{ range: minimum.toPrecision(4), count: scores.length }]
+          : Array.from({ length: 10 }, (_, index) => {
+              const width = (maximum - minimum) / 10;
+              const start = minimum + index * width;
+              const end = index === 9 ? maximum : minimum + (index + 1) * width;
+              return {
+                range: `${start.toPrecision(3)}–${end.toPrecision(3)}`,
+                count: scores.filter((score) =>
+                  score >= start && (index === 9 ? score <= end : score < end)
+                ).length,
+              };
+            });
 
         return { name: metricName, distribution: ranges };
       });
@@ -243,16 +247,12 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             );
             const count = evaluatedMetrics.length;
             const totalCount = (moduleData.metrics || []).length;
-            const avgScore =
-              count > 0 ? evaluatedMetrics.reduce((sum, m) => sum + m.score, 0) / count : null;
-
-            const displayAvg = avgScore === null ? 'Not evaluated' : `${formatScore(avgScore)}%`;
 
             const accordionTitle = (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
                 <span style={{ color: '#FFFFFF' }}>{moduleData.moduleName}</span>
                 <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                  Avg: {displayAvg} <small>({count}/{totalCount} evaluated)</small>
+                  <small>{count}/{totalCount} evaluated · scores retain declared units</small>
                 </span>
               </div>
             );
@@ -264,7 +264,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
                     <span>- {metric.name}</span>
                     <span>
                       {metric.didEval && metric.score !== null
-                        ? `${formatScore(metric.score)}%`
+                        ? formatScore(metric as MetricScore & { score: number })
                         : 'Not evaluated'}
                     </span>
                   </S.TableRow>
@@ -310,7 +310,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="queryNumber" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3af" domain={[0, 100]} />
+              <YAxis stroke="#9CA3af" domain={['auto', 'auto']} />
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               {availableMetrics.map((metricName, index) => (

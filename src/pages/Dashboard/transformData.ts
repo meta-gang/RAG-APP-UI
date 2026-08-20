@@ -3,6 +3,7 @@ import type {
   DiagnosticInference,
   DiagnosticObservation,
   EvaluationRun,
+  ExecutionTraceEvent,
   MetricScore,
   ModuleEvaluation,
   QueryEvaluation,
@@ -26,6 +27,7 @@ export function normalizeMetric(performance: any, fallbackName = 'Unknown'): Met
     name: performance?.metric || performance?._Performance__metric || fallbackName,
     score: didEval ? rawScore : null,
     didEval,
+    unit: performance?.unit || performance?._Performance__unit || '',
   };
 }
 
@@ -47,6 +49,15 @@ export function transformData(storage: any): EvaluationRun {
       observations: [],
       inferences: [],
       configFingerprint: null,
+      executionTrace: [],
+      graphHealth: {
+        totalExecutions: 0,
+        failedExecutions: 0,
+        moduleRevisits: 0,
+        cycleOrRetryObserved: false,
+        terminatedQueries: 0,
+        totalLatencySeconds: 0,
+      },
     };
   }
 
@@ -60,12 +71,13 @@ export function transformData(storage: any): EvaluationRun {
 
   const originalTimestamp = ts || "N/A";
   const modulesMap: Map<string, ModuleEvaluation> = new Map();
-  const queries = Object.values(states);
   const observations: DiagnosticObservation[] = [];
   const inferences: DiagnosticInference[] = [];
+  const executionTrace: ExecutionTraceEvent[] = [];
   const configFingerprints = new Set<string>();
+  let terminatedQueries = 0;
 
-  for (const q of queries) {
+  for (const [queryId, q] of Object.entries(states)) {
     const queryData = q as any;
     const queryText = queryData?.query || "N/A";
     const answerText = queryData?.gen || "N/A";
@@ -74,6 +86,22 @@ export function transformData(storage: any): EvaluationRun {
       configFingerprints.add(configFingerprint);
     }
     const diagnosis = queryData?.diagnosis;
+    if (queryData?.execution_summary?.terminated === true) terminatedQueries += 1;
+    (queryData?.execution_trace || []).forEach((event: any) => executionTrace.push({
+      query: queryText,
+      queryId,
+      executionId: event.execution_id || 'unknown',
+      moduleId: event.module_id || 'unknown',
+      executionIndex: Number.isInteger(event.execution_index) ? event.execution_index : 1,
+      revisitCount: Number.isInteger(event.revisit_count) ? event.revisit_count : 0,
+      parentExecutionIds: Array.isArray(event.parent_execution_ids) ? event.parent_execution_ids : [],
+      status: event.status || 'unknown',
+      latencySeconds: typeof event.latency_seconds === 'number' && Number.isFinite(event.latency_seconds)
+        ? event.latency_seconds
+        : null,
+      nextModules: Array.isArray(event.next_modules) ? event.next_modules : [],
+      failureType: event.failure?.type,
+    }));
     (diagnosis?.observations || []).forEach((item: any) => observations.push({
       code: item.code || 'unknown',
       stage: item.stage || 'unknown',
@@ -101,22 +129,30 @@ export function transformData(storage: any): EvaluationRun {
         const moduleSnapshots = snapshotData[moduleName];
         if (!Array.isArray(moduleSnapshots) || moduleSnapshots.length === 0) continue;
         
-        const snapshot = moduleSnapshots[0]; 
-        const rawMetrics = snapshot.performances || [];
-        const isStarter = snapshot.is_starter === true || snapshot.is_starter === 'true';
+        moduleSnapshots.forEach((snapshot: any, snapshotIndex: number) => {
+          const rawMetrics = snapshot.performances || [];
+          const isStarter = snapshot.is_starter === true || snapshot.is_starter === 'true';
+          const executionIndex = snapshotIndex + 1;
+          const traceEvent = executionTrace.find((event) =>
+            event.queryId === queryId
+            && event.moduleId === moduleName
+            && event.executionIndex === executionIndex
+          );
 
-        const metrics: QueryEvaluation['metrics'] = rawMetrics.map((p: any) => normalizeMetric(p));
+          const metrics: QueryEvaluation['metrics'] = rawMetrics.map((p: any) => normalizeMetric(p));
+          const queryEval: QueryEvaluation = {
+            query: queryText,
+            answer: snapshot.data?.gen || answerText,
+            metrics,
+            executionIndex,
+            executionId: traceEvent?.executionId,
+          };
 
-        const queryEval: QueryEvaluation = {
-          query: queryText,
-          answer: snapshot.data?.gen || answerText,
-          metrics: metrics
-        };
-
-        if (!modulesMap.has(moduleName)) {
-          modulesMap.set(moduleName, { moduleName: moduleName, queries: [], isStarter: isStarter });
-        }
-        modulesMap.get(moduleName)!.queries.push(queryEval);
+          if (!modulesMap.has(moduleName)) {
+            modulesMap.set(moduleName, { moduleName, queries: [], isStarter });
+          }
+          modulesMap.get(moduleName)!.queries.push(queryEval);
+        });
       }
     }
 
@@ -158,5 +194,14 @@ export function transformData(storage: any): EvaluationRun {
     observations,
     inferences,
     configFingerprint: configFingerprints.size === 1 ? Array.from(configFingerprints)[0] : null,
+    executionTrace,
+    graphHealth: {
+      totalExecutions: executionTrace.length,
+      failedExecutions: executionTrace.filter((event) => event.status === 'failed').length,
+      moduleRevisits: executionTrace.reduce((total, event) => total + (event.revisitCount > 0 ? 1 : 0), 0),
+      cycleOrRetryObserved: executionTrace.some((event) => event.revisitCount > 0),
+      terminatedQueries,
+      totalLatencySeconds: executionTrace.reduce((total, event) => total + (event.latencySeconds || 0), 0),
+    },
   };
 }

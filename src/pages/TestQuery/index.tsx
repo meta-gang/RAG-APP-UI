@@ -58,8 +58,8 @@ export const TestQueryPage: React.FC = () => {
 
         let botResponse = 'Evaluation Completed.';
         if (lastState.gen) botResponse = lastState.gen;
-        else if (lastState.snapshots?.output?.[0]?.data?.gen) {
-          botResponse = lastState.snapshots.output[0].data.gen;
+        else if (lastState.snapshots?.output?.at(-1)?.data?.gen) {
+          botResponse = lastState.snapshots.output.at(-1).data.gen;
         }
 
         setTqState((prev) => ({
@@ -74,11 +74,15 @@ export const TestQueryPage: React.FC = () => {
             if (moduleName === 'starter') return;
 
             if (Array.isArray(snapshots) && snapshots.length > 0) {
-              const snap = snapshots[0];
+              snapshots.forEach((snap, executionIndex) => {
               if (snap.performances) {
                 const scores = snap.performances.map((p: any) => normalizeMetric(p));
-                if (scores.length > 0) newMetrics.push({ moduleName, metrics: scores });
+                const executionLabel = snapshots.length > 1
+                  ? `${moduleName}#${executionIndex + 1}`
+                  : moduleName;
+                if (scores.length > 0) newMetrics.push({ moduleName: executionLabel, metrics: scores });
               }
+              });
             }
           });
         }
@@ -104,8 +108,8 @@ export const TestQueryPage: React.FC = () => {
 
               newM.metrics.forEach((m: any) => {
                 if (!m.didEval || m.score === null) return;
-                const scoreVal = m.score <= 1 ? m.score * 100 : m.score;
-                newChartData[m.name] = scoreVal;
+                const seriesName = `${newM.moduleName} · ${m.name} [${m.unit || 'unitless'}]`;
+                newChartData[seriesName] = m.score;
               });
             });
 

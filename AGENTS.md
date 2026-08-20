@@ -43,6 +43,11 @@ them.
 - Preserve explicit not-evaluated and error states. Do not coerce missing,
   failed, or non-finite metric results to a successful numeric score.
 - Keep observed metric evidence distinct from any inferred diagnosis.
+- Render every repeated module snapshot and its execution index. When trace is
+  available, preserve parent IDs, status, latency, revisit, and failure type.
+- Never average metrics with different names, units, ranges, or directions into
+  an overall score or module ranking. Do not infer percentages from numeric
+  magnitude; display the backend-declared unit.
 - History refresh, live execution, and page reload must resolve to real backend
   or persisted data rather than stale Recoil or service-worker state.
 

@@ -6,6 +6,7 @@ export type MetricScore = {
     name: string; // 예: "Context-Relevancy"
     score: number | null; // 평가 실패/미실행이면 null
     didEval: boolean; // 실제 평가가 성공적으로 수행되었는지 여부
+    unit: string; // 백엔드가 선언한 원래 단위/범위. 임의로 %로 변환하지 않음
 };
 
 /**
@@ -15,6 +16,8 @@ export type QueryEvaluation = {
     query: string; // 사용자가 입력한 질문
     answer: string; // RAG 파이프라인이 생성한 답변
     metrics: MetricScore[]; // 해당 쿼리에 대한 평가 지표 목록
+    executionIndex?: number;
+    executionId?: string;
 };
 
 /**
@@ -50,6 +53,29 @@ export type DiagnosticInference = {
   query?: string;
 };
 
+export type ExecutionTraceEvent = {
+  query: string;
+  queryId: string;
+  executionId: string;
+  moduleId: string;
+  executionIndex: number;
+  revisitCount: number;
+  parentExecutionIds: string[];
+  status: 'completed' | 'failed' | string;
+  latencySeconds: number | null;
+  nextModules: string[];
+  failureType?: string;
+};
+
+export type GraphHealth = {
+  totalExecutions: number;
+  failedExecutions: number;
+  moduleRevisits: number;
+  cycleOrRetryObserved: boolean;
+  terminatedQueries: number;
+  totalLatencySeconds: number;
+};
+
 /**
  * @description 특정 날짜에 실행된 전체 RAG 평가 실행 단위를 나타냅니다.
  */
@@ -61,6 +87,8 @@ export type EvaluationRun = {
     observations: DiagnosticObservation[];
     inferences: DiagnosticInference[];
     configFingerprint: string | null;
+    executionTrace: ExecutionTraceEvent[];
+    graphHealth: GraphHealth;
 };
 
 /**

@@ -12,14 +12,16 @@ import type {
   DiagnosticInference,
   DiagnosticObservation,
   EvaluatorHealth,
+  ExecutionTraceEvent,
+  GraphHealth,
 } from '../../globals/types';
 
 interface DashboardViewProps {
   kpiData: {
-    overallScore: string;
-    performanceChange: { value: string; isPositive: boolean; };
-    worstModule: string;
+    evaluatedMetrics: string;
+    notEvaluatedMetrics: string;
     evaluatorCoverage: string;
+    traceExecutions: string;
   };
   zoomedMetric: string | null;
   selectedDate: string;
@@ -40,6 +42,8 @@ interface DashboardViewProps {
   diagnosticObservations: DiagnosticObservation[];
   diagnosticInferences: DiagnosticInference[];
   configFingerprint: string | null;
+  executionTrace: ExecutionTraceEvent[];
+  graphHealth?: GraphHealth;
 }
 
 /**
@@ -51,7 +55,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     modulePerformanceData, handleDotClick, handleFrequencyBarClick, moduleColors,
     detailedQueryData, selectedScoreRange, metricDistributionData,
     handleZoomClick, handleZoomOut, allModuleNames, metricPerformanceBreakdownData,
-    evaluatorHealth, diagnosticObservations, diagnosticInferences, configFingerprint
+    evaluatorHealth, diagnosticObservations, diagnosticInferences, configFingerprint,
+    executionTrace, graphHealth
 }) => {
   return (
     <S.DashboardContainer>
@@ -67,13 +72,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           className="swiper-container"
         >
           <SwiperSlide>
-            <KPICard title="Overall Score" value={kpiData.overallScore} />
+            <KPICard title="Evaluated Metrics" value={kpiData.evaluatedMetrics} />
           </SwiperSlide>
           <SwiperSlide>
-            <KPICard title="Perf. Change (vs last week)" value={kpiData.performanceChange.value} change={kpiData.performanceChange} />
+            <KPICard title="Not Evaluated" value={kpiData.notEvaluatedMetrics} />
           </SwiperSlide>
           <SwiperSlide>
-            <KPICard title="Lowest Module" value={kpiData.worstModule} />
+            <KPICard title="Trace Executions" value={kpiData.traceExecutions} />
           </SwiperSlide>
           <SwiperSlide>
             <KPICard title="Evaluator Coverage" value={kpiData.evaluatorCoverage} />
@@ -86,7 +91,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <S.GridContainer>
         <S.MainChartWrapper>
           <S.ChartBox>
-            <S.BoxTitle>RAG Performance Change</S.BoxTitle>
+            <S.BoxTitle>Evaluator Coverage by Module</S.BoxTitle>
             <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', flexGrow: 1 }}>
                 <ResponsiveContainer width={Math.max(modulePerformanceData.length * 80, 400)} height="100%">
                     <LineChart data={modulePerformanceData}>
@@ -203,7 +208,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 <S.QueryText title={q.query}>Query: {q.query}</S.QueryText>
                                 <S.ScoreWrapper>
                                   <S.MetricName>{zoomedMetric}</S.MetricName>
-                                  <S.ScoreText>{(q.score).toFixed(1)}%</S.ScoreText>
+                                <S.ScoreText>{(q.score).toPrecision(4)} {q.unit}</S.ScoreText>
                                 </S.ScoreWrapper>
                               </S.QueryItem>
                             ))}
@@ -262,6 +267,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </S.SidePanelWrapper>
         </S.GridContainer>
       </div>
+
+      <div>
+        <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>Graph / Cycle Execution Trace</S.BoxTitle>
+        <S.ChartBox>
+          <S.QueryInfoText>
+            Executions: {graphHealth?.totalExecutions || 0} · failures: {graphHealth?.failedExecutions || 0}
+            {' '}· revisits: {graphHealth?.moduleRevisits || 0} · terminated queries: {graphHealth?.terminatedQueries || 0}
+          </S.QueryInfoText>
+          <S.ScrollableContent style={{ height: '260px' }}>
+            {executionTrace.length === 0 ? (
+              <S.NoDataText>Execution trace is unavailable for this legacy run.</S.NoDataText>
+            ) : executionTrace.map((event) => (
+              <S.QueryItem key={`${event.queryId}-${event.executionId}`}>
+                <S.QueryText>
+                  {event.moduleId}#{event.executionIndex} · {event.status}
+                </S.QueryText>
+                <S.QueryInfoText>
+                  {event.executionId} · parents: {event.parentExecutionIds.join(', ') || 'root'} · next: {event.nextModules.join(', ') || 'none'}
+                </S.QueryInfoText>
+                <S.QueryInfoText>
+                  latency: {event.latencySeconds === null ? 'N/A' : `${(event.latencySeconds * 1000).toFixed(2)} ms`}
+                  {event.failureType ? ` · failure: ${event.failureType}` : ''}
+                  {event.revisitCount > 0 ? ` · revisit ${event.revisitCount}` : ''}
+                </S.QueryInfoText>
+              </S.QueryItem>
+            ))}
+          </S.ScrollableContent>
+        </S.ChartBox>
+      </div>
       
       <div>
         <S.BoxTitle as="h2" style={{ marginBottom: '1rem' }}>Metric Performance Breakdown</S.BoxTitle>
@@ -273,7 +307,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <LineChart data={data}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="date" stroke="#9CA3AF" />
-                  <YAxis stroke="#9CA3AF" domain={[0, 100]} />
+                  <YAxis stroke="#9CA3AF" domain={['auto', 'auto']} />
                   <Tooltip contentStyle={{ backgroundColor: "#1F2937", borderColor: "#4B5563" }} />
                   <Legend />
                   {data.length > 0 && Object.keys(data.reduce((acc, curr) => ({...acc, ...curr}), {}))
