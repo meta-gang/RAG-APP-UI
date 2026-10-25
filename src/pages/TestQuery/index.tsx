@@ -1,265 +1,153 @@
-// src/pages/TestQuery/index.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRecoilState } from 'recoil';
-import { MarkerType, Node, Edge } from 'reactflow';
+import { MarkerType } from 'reactflow';
 import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { socket } from '../../apis/socket';
-import { normalizeMetric } from '../Dashboard/transformData';
+import { layoutGraph, GraphPair } from './graph';
+import { appendLiveResult, normalizedStatus, statusKey } from './liveData';
 
-/**
- * TestQueryPage 컴포넌트
- *
- * RAG 파이프라인의 실시간 테스트, 토폴로지 시각화, 채팅 인터페이스,
- * 그리고 실시간 평가 지표(Metric) 차트를 제공하는 페이지입니다.
- */
 export const TestQueryPage: React.FC = () => {
-  type ModulePair = [string, string];
-  const [modulePairs, setModulePairs] = useState<ModulePair[]>([]);
-  const [tqState, setTqState] = useRecoilState(testQueryState);
-
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
-
-  /**
-   * 소켓 이벤트를 구독하고 수신된 데이터를 처리하여 상태를 갱신합니다.
-   *
-   * - rag-container: 파이프라인 구조(토폴로지) 수신
-   * - module-statu: 각 모듈의 실행 상태(pending/loading/completed) 수신
-   * - rag-result-data: RAG 실행 완료 후 결과 및 평가 지표 수신
-   */
+  const [moduleIds, setModuleIds] = useState<string[]>([]);
+  const [modulePairs, setModulePairs] = useState<GraphPair[]>([]),
+    [state, setState] = useRecoilState(testQueryState);
+  const [activeQuery, setActiveQuery] = useState(''),
+    [queryLabels, setQueryLabels] = useState<Record<string, string>>({}),
+    [error, setError] = useState('');
   useEffect(() => {
-    socket.subscribe(['rag-container', 'rag-result-data', 'module-statu', 'error']);
-
-    const handleModulePairs = (data: any) => {
-      if (data.topic === 'rag-container' && Array.isArray(data['rag-container'])) {
-        console.log('[TestQuery] Topology Received:', data['rag-container']);
-        setModulePairs(data['rag-container']);
+    const topology = (data: any) => {
+      if (Array.isArray(data['rag-container'])) setModulePairs(data['rag-container']);
+      if (Array.isArray(data.module_ids)) setModuleIds(data.module_ids.filter((id: any) => typeof id === 'string'));
+    };
+    const status = (data: any) => {
+      if (typeof data.module !== 'string') return;
+      const queryId = typeof data.query_id === 'string' ? data.query_id : '';
+      if (queryId) {
+        setQueryLabels((prev) => ({ ...prev, [queryId]: prev[queryId] || queryId }));
+        setActiveQuery((prev) => prev || queryId);
+      }
+      setState((prev) => ({
+        ...prev,
+        moduleStatuses: { ...prev.moduleStatuses, [statusKey(data.module, queryId)]: normalizedStatus(data) as any },
+      }));
+    };
+    const result = (data: any) => {
+      if (!data.storage?.states) return;
+      Object.entries(data.storage.states).forEach(([id, s]: [string, any]) => {
+        setQueryLabels((prev) => ({ ...prev, [id]: typeof s?.query === 'string' ? s.query : id }));
+        setActiveQuery((prev) => prev || id);
+      });
+      setState((prev) => appendLiveResult(prev, data.storage.states));
+    };
+    const failure = (data: any) => setError(data.message || '실행 오류가 발생했습니다. 저장된 진단을 확인하세요.');
+    const connection = (data: any) => {
+      if (data.status === 'connected') {
+        socket.send({ topic: 'get-module-pairs' });
+        if (data.recovered) socket.send({ topic: 'start!' });
       }
     };
-
-    const handleModuleStatus = (data: any) => {
-      if (data.topic === 'module-statu' && data.module && data.statu) {
-        setTqState((prev) => ({
-          ...prev,
-          moduleStatuses: { ...prev.moduleStatuses, [data.module]: data.statu },
-        }));
-      }
+    const history = (data: any) => {
+      const runs = Object.values(data.history || {});
+      const states = runs.at(-1);
+      if (states && typeof states === 'object') result({ storage: { states } });
     };
-
-    const handleRagResult = (data: any) => {
-      if (data.topic === 'rag-result-data' && data.storage?.states) {
-        const states = data.storage.states;
-        const keys = Object.keys(states);
-        if (keys.length === 0) return;
-
-        const lastKey = keys[keys.length - 1];
-        const lastState = states[lastKey];
-
-        let botResponse = 'Evaluation Completed.';
-        if (lastState.gen) botResponse = lastState.gen;
-        else if (lastState.snapshots?.output?.at(-1)?.data?.gen) {
-          botResponse = lastState.snapshots.output.at(-1).data.gen;
-        }
-
-        setTqState((prev) => ({
-          ...prev,
-          messages: [...prev.messages, { sender: 'bot', text: botResponse }],
-        }));
-
-        const newMetrics: any[] = [];
-
-        if (lastState.snapshots) {
-          Object.entries(lastState.snapshots).forEach(([moduleName, snapshots]: [string, any]) => {
-            if (moduleName === 'starter') return;
-
-            if (Array.isArray(snapshots) && snapshots.length > 0) {
-              snapshots.forEach((snap, executionIndex) => {
-              if (snap.performances) {
-                const scores = snap.performances.map((p: any) => normalizeMetric(p));
-                const executionLabel = snapshots.length > 1
-                  ? `${moduleName}#${executionIndex + 1}`
-                  : moduleName;
-                if (scores.length > 0) newMetrics.push({ moduleName: executionLabel, metrics: scores });
-              }
-              });
-            }
-          });
-        }
-
-        if (lastState.performances && Array.isArray(lastState.performances) && lastState.performances.length > 0) {
-          const e2eScores = lastState.performances.map((p: any) => normalizeMetric(p, 'Unknown E2E'));
-
-          if (e2eScores.length > 0) {
-            newMetrics.push({ moduleName: 'E2E-Metrics', metrics: e2eScores });
-          }
-        }
-
-        if (newMetrics.length > 0) {
-          setTqState((prev) => {
-            const updatedMetrics = prev.metrics.map((m) => ({ ...m, metrics: [...m.metrics] }));
-            const currentQueryNumber = prev.liveMetricsHistory.length + 1;
-            const newChartData: any = { queryNumber: currentQueryNumber, query: `Query ${currentQueryNumber}` };
-
-            newMetrics.forEach((newM) => {
-              const idx = updatedMetrics.findIndex((m) => m.moduleName === newM.moduleName);
-              if (idx !== -1) updatedMetrics[idx].metrics = [...updatedMetrics[idx].metrics, ...newM.metrics];
-              else updatedMetrics.push(newM);
-
-              newM.metrics.forEach((m: any) => {
-                if (!m.didEval || m.score === null) return;
-                const seriesName = `${newM.moduleName} · ${m.name} [${m.unit || 'unitless'}]`;
-                newChartData[seriesName] = m.score;
-              });
-            });
-
-            return {
-              ...prev,
-              metrics: updatedMetrics,
-              liveMetricsHistory: [...prev.liveMetricsHistory, newChartData],
-            };
-          });
-        }
-      }
-    };
-
-    socket.on('rag-container', handleModulePairs);
-    socket.on('module-statu', handleModuleStatus);
-    socket.on('rag-result-data', handleRagResult);
-
-    const interval = setInterval(() => {
-      if (modulePairs.length === 0) socket.send({ topic: 'get-module-pairs' });
-    }, 2000);
-
+    socket.on('rag-container', topology);
+    socket.on('module-statu', status);
+    socket.on('rag-result-data', result);
+    socket.on('history', history);
+    socket.on('error', failure);
+    socket.on('connection-state', connection);
+    socket.subscribe(['rag-container', 'module-statu', 'rag-result-data', 'error', 'history']);
+    socket.send({ topic: 'get-module-pairs' });
     return () => {
-      socket.off('rag-container', handleModulePairs);
-      socket.off('module-statu', handleModuleStatus);
-      socket.off('rag-result-data', handleRagResult);
-      clearInterval(interval);
+      socket.off('rag-container', topology);
+      socket.off('module-statu', status);
+      socket.off('rag-result-data', result);
+      socket.off('history', history);
+      socket.off('error', failure);
+      socket.off('connection-state', connection);
     };
-  }, [modulePairs.length, setTqState, modulePairs]);
-
-  /**
-   * 수신된 모듈 간 연결 정보(modulePairs)를 바탕으로 그래프 노드와 엣지를 생성합니다.
-   * 위상 정렬과 유사한 로직을 사용하여 노드의 Y 좌표 레벨을 결정합니다.
-   */
-  useEffect(() => {
-    if (modulePairs.length === 0) return;
-
-    const graph: Record<string, string[]> = {};
-    const allModules = new Set<string>();
-    modulePairs.forEach(([from, to]) => {
-      if (!graph[from]) graph[from] = [];
-      graph[from].push(to);
-      allModules.add(from);
-      allModules.add(to);
-    });
-
-    const levels: Record<string, number> = {};
-    const queue: { id: string; level: number }[] = [];
-
-    const targets = new Set(modulePairs.map((p) => p[1]));
-    const starts = Array.from(allModules).filter((m) => !targets.has(m));
-    if (starts.length === 0 && allModules.size > 0) starts.push(Array.from(allModules)[0]);
-    starts.forEach((id) => queue.push({ id, level: 0 }));
-
-    while (queue.length > 0) {
-      const { id, level } = queue.shift()!;
-      if (levels[id] !== undefined) continue;
-      levels[id] = level;
-      (graph[id] || []).forEach((next) => queue.push({ id: next, level: level + 1 }));
-    }
-    allModules.forEach((m) => {
-      if (levels[m] === undefined) levels[m] = 0;
-    });
-
-    const newNodes: Node[] = Array.from(allModules).map((mod) => {
-      const level = levels[mod];
-      const xOffset = (mod.charCodeAt(0) % 2) * 50;
-      return {
-        id: mod,
-        type: 'moduleNode',
-        position: { x: xOffset, y: level * 150 },
-        data: {
-          label: mod,
-          status: tqState.moduleStatuses[mod] || 'pending',
-        },
-        draggable: false,
-      };
-    });
-
-    const newEdges: Edge[] = modulePairs.map(([source, target]) => {
-      const isLoop = (levels[target] || 0) <= (levels[source] || 0);
-      return {
-        id: `${source}-${target}`,
-        source,
-        target,
-        type: isLoop ? 'default' : 'smoothstep',
-        animated: false,
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          color: isLoop ? '#f87171' : '#9ca3af',
-        },
-        style: {
-          stroke: isLoop ? '#f87171' : '#9ca3af',
-          strokeWidth: 2,
-          strokeDasharray: isLoop ? '5,5' : undefined,
-        },
-        zIndex: isLoop ? 10 : 0,
-        label: isLoop ? 'Loop' : undefined,
-        labelStyle: { fill: '#f87171', fontWeight: 700 },
-      };
-    });
-
-    setNodes(newNodes);
-    setEdges(newEdges);
-  }, [modulePairs, tqState.moduleStatuses]);
-
-  /**
-   * 사용자가 입력한 쿼리를 서버로 전송하여 RAG 파이프라인 테스트를 시작합니다.
-   * 채팅창에 사용자 메시지를 추가하고, 이전 상태를 초기화합니다.
-   *
-   * @param e 폼 전송 이벤트
-   */
-  const handleSendMessage = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const input = e.currentTarget.queryInput as HTMLInputElement;
-    const query = input.value;
-    if (!query) return;
-
-    setTqState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, { sender: 'user', text: query }],
+  }, [setState]);
+  const graph = useMemo(() => layoutGraph(modulePairs, moduleIds), [modulePairs, moduleIds]);
+  const nodes = graph.nodes.map((node) => ({
+    ...node,
+    type: 'moduleNode',
+    data: {
+      label: node.id,
+      status: state.moduleStatuses[statusKey(node.id, activeQuery)] || state.moduleStatuses[node.id] || 'pending',
+    },
+    draggable: false,
+  }));
+  const edges = graph.edges.map((edge) => ({
+    id: `${edge.source}-${edge.target}`,
+    source: edge.source,
+    target: edge.target,
+    type: edge.isCycle ? 'default' : 'smoothstep',
+    markerEnd: { type: MarkerType.ArrowClosed, color: edge.isCycle ? '#f87171' : '#9ca3af' },
+    style: { stroke: edge.isCycle ? '#f87171' : '#9ca3af', strokeDasharray: edge.isCycle ? '5,5' : undefined },
+    label: edge.isCycle ? '순환' : undefined,
+  }));
+  const units = Array.from(new Set(state.metrics.flatMap((group) => group.metrics.map((m) => m.unit))));
+  const reset = () => {
+    setState({
+      messages: [],
+      metrics: [],
       moduleStatuses: {},
+      liveMetricsHistory: [],
       activeConnections: [],
-    }));
+      processedQueryIds: [],
+    });
+    setQueryLabels({});
+    setActiveQuery('');
+    setError('');
+  };
+  const send = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const input = event.currentTarget.queryInput as HTMLInputElement;
+    const query = input.value.trim();
+    if (!query) return;
+    setActiveQuery('');
+    setError('');
+    setState((prev) => ({ ...prev, messages: [...prev.messages, { sender: 'user', text: query }] }));
     socket.send({ topic: 'test-query', query });
     input.value = '';
   };
-
-  /**
-   * 화면의 모든 평가 데이터와 채팅 기록을 초기화합니다.
-   */
-  const handleReset = () => {
-    setTqState({ messages: [], metrics: [], moduleStatuses: {}, liveMetricsHistory: [], activeConnections: [] });
-  };
-
-  const handleFileUpload = (files: string[]) => socket.send({ topic: 'run-rag-file-query', files });
-  const handleLLMQuery = (s: any) => socket.send({ topic: 'run-rag-llm-query', settings: s });
-
   return (
-    <TestQueryView
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={() => {}}
-      onEdgesChange={() => {}}
-      messages={tqState.messages}
-      handleSendMessage={handleSendMessage}
-      handleFileUpload={handleFileUpload}
-      handleLLMQuery={handleLLMQuery}
-      metrics={tqState.metrics}
-      liveMetricsHistory={tqState.liveMetricsHistory}
-      handleReset={handleReset}
-    />
+    <>
+      {error && (
+        <p role="alert" style={{ padding: '12px 32px', color: '#fca5a5' }}>
+          {error}
+        </p>
+      )}
+      <div style={{ padding: '12px 32px', color: '#e5e7eb' }}>
+        <label>
+          상태를 볼 질문{' '}
+          <select aria-label="상태를 볼 질문" value={activeQuery} onChange={(e) => setActiveQuery(e.target.value)}>
+            {Object.entries(queryLabels).map(([id, label]) => (
+              <option value={id} key={id}>
+                {label} · {id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p>
+          각 질문의 실행 상태를 따로 표시합니다. 점수는 지표별 원래 단위({units.join(', ') || '아직 없음'})로
+          표시합니다.
+        </p>
+      </div>
+      <TestQueryView
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={() => {}}
+        onEdgesChange={() => {}}
+        messages={state.messages}
+        metrics={state.metrics}
+        liveMetricsHistory={state.liveMetricsHistory}
+        handleSendMessage={send}
+        handleReset={reset}
+        handleFileUpload={(files) => socket.sendFileQuery(files)}
+        handleLLMQuery={(settings) => socket.sendLLMQuery(settings as any)}
+      />
+    </>
   );
 };

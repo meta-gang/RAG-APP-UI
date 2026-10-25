@@ -1,413 +1,305 @@
-// src/pages/Dashboard/index.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
-import { dashboardResultState, appLoadingState, AppLoadingState } from '../../globals/recoil/atoms';
+import { dashboardResultState, appLoadingState } from '../../globals/recoil/atoms';
 import { socket } from '../../apis/socket';
 import { DashboardView } from './DashboardView';
 import { transformData } from './transformData';
 import { CHART_COLORS } from '../../globals/styles/color';
-import { MetricScore, QueryEvaluation } from '../../globals/types';
+import {
+  Aggregation,
+  ScoreBin,
+  histogram,
+  inScoreBin,
+  isEvaluatedMetric,
+  metricIdentity,
+  metricSamples,
+  selectedKpis,
+  compareModuleRuns,
+} from './analysis';
+import type { EvaluationRun } from '../../globals/types';
 
-const isEvaluatedMetric = (metric: MetricScore): metric is MetricScore & { score: number } =>
-  metric.didEval && metric.score !== null && Number.isFinite(metric.score);
-
-const metricIdentity = (metric: MetricScore) =>
-  `${metric.name} [${metric.unit || 'unitless'}]`;
-
-/**
- * 연속적으로 데이터가 없는 구간을 요약하여 차트 데이터 배열을 압축합니다.
- */
-const compressChartData = (data: any[], allModuleNames: string[], keyCheck: (item: any) => boolean) => {
-  const compressedData = [];
-  let consecutiveNulls = 0;
-  for (let i = 0; i < data.length; i++) {
-    if (keyCheck(data[i])) {
-      if (consecutiveNulls > 2) {
-        // 생략된 데이터에도 timestamp 키가 없으면 에러가 날 수 있으므로 주의, 여기선 시각화용이라 무방
-        const ellipsisEntry: any = { date: `... (${consecutiveNulls} omitted)` };
-        allModuleNames.forEach((name) => {
-          ellipsisEntry[name] = null;
-        });
-        compressedData.push(ellipsisEntry);
-      }
-      compressedData.push(data[i]);
-      consecutiveNulls = 0;
-    } else {
-      if (consecutiveNulls < 3 && i > 0 && keyCheck(data[i - 1])) {
-        compressedData.push(data[i]);
-      }
-      consecutiveNulls++;
-    }
-  }
-  return compressedData;
-};
-
-/**
- * DashboardPage 컴포넌트
- * 백엔드로부터 RAG 실행 이력을 수신하여 시각화합니다.
- */
 export const DashboardPage: React.FC = () => {
-  const evaluationRuns = useRecoilValue(dashboardResultState);
-  const setDashboardResult = useSetRecoilState(dashboardResultState);
-  const setAppLoading = useSetRecoilState(appLoadingState);
-
-  const [selectedTimestamp, setSelectedTimestamp] = useState<string>('');
-  const [selectedModule, setSelectedModule] = useState<string>('');
-  const [zoomedMetric, setZoomedMetric] = useState<string | null>(null);
-  const [selectedScoreRange, setSelectedScoreRange] = useState<[number, number] | null>(null);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-
+  const runs = useRecoilValue(dashboardResultState),
+    setRuns = useSetRecoilState(dashboardResultState),
+    setLoading = useSetRecoilState(appLoadingState);
+  const [selectedTimestamp, setSelectedTimestamp] = useState(''),
+    [selectedModule, setSelectedModule] = useState('');
+  const [baselineId, setBaselineId] = useState('');
+  const [persistenceError, setPersistenceError] = useState('');
+  const [aggregation, setAggregation] = useState<Aggregation>('final');
+  const [zoomedMetric, setZoomedMetric] = useState<string | null>(null),
+    [selectedBin, setSelectedBin] = useState<ScoreBin | null>(null);
+  const [error, setError] = useState(''),
+    [connection, setConnection] = useState(''),
+    [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    if (evaluationRuns.length > 0) {
-      const lastRun = evaluationRuns[evaluationRuns.length - 1];
-      if (!selectedTimestamp) setSelectedTimestamp(lastRun.timestamp);
-      if (!selectedModule && lastRun.modules.length > 0) setSelectedModule(lastRun.modules[0].moduleName);
-      setIsDataLoaded(true);
-    }
-  }, [evaluationRuns, selectedTimestamp, selectedModule]);
-
-  useEffect(() => {
-    if (!isInitialLoad) {
-      socket.send({ topic: 'start!', flow_id: 'loop_graph' });
-      
-      setAppLoading((prev: AppLoadingState) => ({
-        ...prev,
-        isLoading: true,
-        message: 'Refreshing Data...',
-      }));
-    }
-    
+    const finish = () => setLoading((prev) => ({ ...prev, isLoading: false }));
+    const history = (data: any) => {
+      if (!data.history || typeof data.history !== 'object') return;
+      const parsed: EvaluationRun[] = Object.entries(data.history)
+        .filter(([, v]) => v && typeof v === 'object')
+        .map(([ts, states]) => transformData({ ts, states }));
+      parsed.sort((a, b) => a.date.localeCompare(b.date) || a.timestamp.localeCompare(b.timestamp));
+      setRuns((previous) =>
+        [...parsed, ...previous.filter((r) => r.persisted === false && !parsed.some((p) => p.runId === r.runId))].sort(
+          (a, b) => a.date.localeCompare(b.date),
+        ),
+      );
+      setLoaded(true);
+      setError('');
+      finish();
+    };
+    const result = (data: any) => {
+      if (!data.storage?.states) return;
+      const run = transformData({ ...data.storage, ts: data.run_id || data.ts, persisted: data.persisted });
+      if (data.persisted === false)
+        setPersistenceError('이 실행을 이력에 저장하지 못했습니다. 현재 결과는 임시 표시입니다.');
+      else setPersistenceError('');
+      setRuns((previous) =>
+        [...previous.filter((r) => r.runId !== run.runId), run].sort((a, b) => a.date.localeCompare(b.date)),
+      );
+      setLoaded(true);
+      finish();
+    };
+    const failure = (data: any) => {
+      setError(data.message || '실행에 실패했습니다. 저장된 실패 기록을 확인하세요.');
+      finish();
+    };
+    const status = (data: any) =>
+      setConnection(data.status === 'connected' ? '연결됨' : data.message || '연결 확인 중');
+    socket.on('history', history);
+    socket.on('rag-result-data', result);
+    socket.on('error', failure);
+    socket.on('connection-state', status);
+    socket.subscribe(['history', 'rag-result-data', 'error']);
+    socket.send({ topic: 'start!' });
     return () => {
-      setIsInitialLoad(false);
+      socket.off('history', history);
+      socket.off('rag-result-data', result);
+      socket.off('error', failure);
+      socket.off('connection-state', status);
     };
-  }, []);
-
-  /**
-   * 소켓 핸들러 등록 및 데이터 요청
-   */
-  useEffect(() => {
-    const handleDashboardHistory = (data: any) => {
-      if (data.topic === 'history' && data.history) {
-        console.log('✅ [Dashboard] Received history data:', data.history);
-        
-        try {
-          const historyData = data.history;
-          const parsedRuns: any[] = [];
-
-          Object.keys(historyData).forEach((timestampKey) => {
-            const states = historyData[timestampKey];
-            if (states && Object.keys(states).length > 0) {
-                const simulatedStorageData = {
-                  ts: timestampKey,
-                  states: states,
-                };
-                const run = transformData(simulatedStorageData);
-                parsedRuns.push(run);
-            }
-          });
-
-          if (parsedRuns.length > 0) {
-              parsedRuns.sort((a, b) => (a.timestamp > b.timestamp ? 1 : -1));
-              setDashboardResult(parsedRuns);
-              
-              setAppLoading((prev: AppLoadingState) => ({
-                ...prev,
-                isLoading: false,
-                message: 'Data Loaded',
-              }));
-          } else {
-              console.warn('[Dashboard] Parsed runs are empty. Check data structure.');
-          }
-        } catch (error) {
-          console.error('❌ [Dashboard] Data Processing Error:', error);
-        }
-      }
-    };
-
-    socket.on('history', handleDashboardHistory);
-    socket.subscribe(['history']);
-    
-    setTimeout(() => {
-        socket.send({ topic: 'start!', flow_id: 'loop_graph' });
-    }, 200);
-
-    setAppLoading((prev: AppLoadingState) => ({
-      ...prev,
-      isLoading: true,
-      message: 'Fetching History...',
-    }));        
-    
-
-    return () => {
-      socket.off('history', handleDashboardHistory);
-    };
-  }, []);
-
-  const allModuleNames = useMemo(() => {
-    const names = new Set<string>();
-    evaluationRuns.forEach((run) => {
-      run.modules.forEach((module) => {
-        if (!module.isStarter) {
-          names.add(module.moduleName);
-        }
-      });
-    });
-    return Array.from(names);
-  }, [evaluationRuns]);
-
-  const kpiData = useMemo(() => {
-    if (evaluationRuns.length === 0)
-      return {
-        evaluatedMetrics: 'N/A',
-        notEvaluatedMetrics: 'N/A',
-        evaluatorCoverage: 'N/A',
-        traceExecutions: 'N/A',
-      };
-
-    const latestRun = evaluationRuns[evaluationRuns.length - 1];
-    const evaluatorCoverage = latestRun.evaluatorHealth.coverage === null
-      ? 'N/A'
-      : `${(latestRun.evaluatorHealth.coverage * 100).toFixed(1)}%`;
-    return {
-      evaluatedMetrics: latestRun.evaluatorHealth.evaluated.toString(),
-      notEvaluatedMetrics: latestRun.evaluatorHealth.notEvaluated.toString(),
-      evaluatorCoverage,
-      traceExecutions: latestRun.graphHealth.totalExecutions.toString(),
-    };
-  }, [evaluationRuns]);
-
-  const selectedRun = useMemo(
-    () => evaluationRuns.find((run) => run.timestamp === selectedTimestamp),
-    [selectedTimestamp, evaluationRuns]
+  }, [setRuns, setLoading]);
+  const selectedRun = runs.find((r) => (r.runId || r.timestamp) === selectedTimestamp) || runs.at(-1);
+  const module = selectedRun?.modules.find((m) => m.moduleName === selectedModule) || selectedRun?.modules[0];
+  const moduleName = module?.moduleName || '';
+  const baselineCandidates = runs.filter((r) => r.runId !== selectedRun?.runId);
+  const baselineRun =
+    baselineCandidates.find((r) => (r.runId || r.timestamp) === baselineId) || baselineCandidates.at(-1);
+  const comparisons = compareModuleRuns(baselineRun, selectedRun, moduleName);
+  const allModuleNames = useMemo(
+    () => Array.from(new Set(runs.flatMap((r) => r.modules.map((m) => m.moduleName)))),
+    [runs],
   );
-  
-  // selectedRun이 결정되면 date값도 가져올 수 있습니다. View에 넘겨주기 위해 계산
-  const displayDate = selectedRun ? selectedRun.date : '';
-
-  const selectedModuleData = useMemo(
-    () => selectedRun?.modules.find((m) => m.moduleName === selectedModule),
-    [selectedRun, selectedModule]
-  );
-
-  const modulePerformanceData = useMemo(() => {
-    const rawData = evaluationRuns.map((run) => {
-      const entry: { date: string; timestamp: string; [key: string]: number | string | null } = { 
-        date: run.date,
-        timestamp: run.timestamp
-      };
-      let hasData = false;
-      allModuleNames.forEach((moduleName) => {
-        const module = run.modules.find((m) => m.moduleName === moduleName);
-        if (!module || module.isStarter || module.queries.length === 0) {
-          entry[moduleName] = null;
-        } else {
-          const metrics = module.queries.flatMap((query) => query.metrics);
-          if (metrics.length === 0) {
-            entry[moduleName] = null;
-            return;
-          }
-          hasData = true;
-          const evaluatedCount = metrics.filter(isEvaluatedMetric).length;
-          entry[moduleName] = parseFloat(((evaluatedCount / metrics.length) * 100).toFixed(2));
-        }
-      });
-      return { ...entry, _hasData: hasData };
-    });
-    return compressChartData(rawData, allModuleNames, (item) => item._hasData);
-  }, [allModuleNames, evaluationRuns]);
-
-  const metricPerformanceBreakdownData = useMemo(() => {
-    const breakdown: { [metricName: string]: any[] } = {};
-    const allMetrics = new Set<string>();
-    evaluationRuns.forEach((r) =>
-      r.modules.forEach((m) => m.queries.forEach((q) => q.metrics.forEach((metric) => allMetrics.add(metricIdentity(metric)))))
-    );
-    allMetrics.forEach((metricName) => {
-      const rawData = evaluationRuns.map((run) => {
-        const entry: { date: string; [key: string]: number | string | null } = { date: run.date };
-        let hasData = false;
-        allModuleNames.forEach((moduleName) => {
-          const module = run.modules.find((m) => m.moduleName === moduleName);
-          if (module?.isStarter) {
-            entry[moduleName] = null;
-            return;
-          }
-          const scores = module?.queries.flatMap((query) => {
-            const metric = query.metrics.find((candidate) => metricIdentity(candidate) === metricName);
-            return metric && isEvaluatedMetric(metric) ? [metric.score] : [];
-          }) || [];
-          if (scores.length > 0) {
-            hasData = true;
-            const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-            entry[moduleName] = parseFloat(avgScore.toFixed(2));
-          } else {
-            entry[moduleName] = null;
-          }
+  const modulePerformanceData = useMemo(
+    () =>
+      runs.map((run) => {
+        const entry: any = { date: run.date, timestamp: run.runId || run.timestamp };
+        allModuleNames.forEach((name) => {
+          const metrics = run.modules.find((m) => m.moduleName === name)?.queries.flatMap((q) => q.metrics) || [];
+          entry[name] = metrics.length ? (metrics.filter(isEvaluatedMetric).length / metrics.length) * 100 : null;
         });
-        return { ...entry, _hasData: hasData };
+        return entry;
+      }),
+    [runs, allModuleNames],
+  );
+  const metricPerformanceBreakdownData = useMemo(() => {
+    const identities = Array.from(
+      new Set(runs.flatMap((r) => r.modules.flatMap((m) => m.queries.flatMap((q) => q.metrics.map(metricIdentity))))),
+    );
+    const output: Record<string, any[]> = {};
+    identities.forEach((identity) => {
+      output[identity] = runs.map((run) => {
+        const entry: any = { date: run.date };
+        allModuleNames.forEach((name) => {
+          const samples = metricSamples(
+            run.modules.find((m) => m.moduleName === name)?.queries || [],
+            identity,
+            aggregation,
+          );
+          entry[name] = samples.length ? samples.reduce((s, x) => s + x.score, 0) / samples.length : null;
+        });
+        return entry;
       });
-      breakdown[metricName] = compressChartData(rawData, allModuleNames, (item) => item._hasData);
     });
-    return breakdown;
-  }, [allModuleNames, evaluationRuns]);
-
-  const getFrequencyData = (queries: QueryEvaluation[], metricName: string) => {
-    const scores = queries.flatMap((query) => {
-      const metric = query.metrics.find((candidate) => metricIdentity(candidate) === metricName);
-      return metric && isEvaluatedMetric(metric) ? [metric.score] : [];
-    });
-    if (scores.length === 0) return [];
-    const minimum = Math.min(...scores);
-    const maximum = Math.max(...scores);
-    if (minimum === maximum) {
-      return [{ range: minimum.toPrecision(4), start: minimum, end: maximum, count: scores.length }];
-    }
-    const width = (maximum - minimum) / 10;
-    return Array.from({ length: 10 }, (_, index) => {
-      const start = minimum + width * index;
-      const end = index === 9 ? maximum : minimum + width * (index + 1);
-      const count = scores.filter((score) =>
-        score >= start && (index === 9 ? score <= end : score < end)
-      ).length;
-      return {
-        range: `${start.toPrecision(3)}–${end.toPrecision(3)}`,
-        start,
-        end,
-        count,
-      };
-    });
+    return output;
+  }, [runs, allModuleNames, aggregation]);
+  const identities = Array.from(new Set(module?.queries.flatMap((q) => q.metrics.map(metricIdentity)) || []));
+  const metricDistributionData = identities.map((identity) => {
+    const samples = metricSamples(module?.queries || [], identity, aggregation);
+    return { metricName: identity, data: histogram(samples.map((s) => s.score)), sampleCount: samples.length };
+  });
+  const samples = zoomedMetric ? metricSamples(module?.queries || [], zoomedMetric, aggregation) : [];
+  const detailedQueryData = samples
+    .filter((s) => !selectedBin || inScoreBin(s.score, selectedBin))
+    .map((s) => ({ ...s, unit: s.metric.unit }))
+    .sort((a, b) => b.score - a.score);
+  const notEvaluated =
+    module?.queries.flatMap((q) =>
+      q.metrics
+        .filter((m) => !isEvaluatedMetric(m))
+        .map((metric) => ({ query: q.query, queryId: q.queryId, executionIndex: q.executionIndex, metric })),
+    ) || [];
+  const resetView = () => {
+    setZoomedMetric(null);
+    setSelectedBin(null);
   };
-
-  const metricDistributionData = useMemo(() => {
-    if (!selectedModuleData) return [];
-    const metricNames = selectedModuleData.queries.reduce((acc, q) => {
-      q.metrics.forEach((m) => acc.add(metricIdentity(m)));
-      return acc;
-    }, new Set<string>());
-    return Array.from(metricNames).map((name) => ({
-      metricName: name,
-      data: getFrequencyData(selectedModuleData.queries, name),
-    }));
-  }, [selectedModuleData]);
-
-  const zoomedFrequencyData = useMemo(() => {
-    if (!selectedModuleData || !zoomedMetric) return [];
-    return getFrequencyData(selectedModuleData.queries, zoomedMetric);
-  }, [selectedModuleData, zoomedMetric]);
-
-  const detailedQueryData = useMemo(() => {
-    if (!selectedModuleData || !zoomedMetric) return [];
-    let queries = selectedModuleData.queries.filter((query) => {
-      const metric = query.metrics.find((candidate) => metricIdentity(candidate) === zoomedMetric);
-      return metric !== undefined && isEvaluatedMetric(metric);
-    });
-    if (selectedScoreRange) {
-      queries = queries.filter((q) => {
-        const metric = q.metrics.find((m) => metricIdentity(m) === zoomedMetric)!;
-        if (!isEvaluatedMetric(metric)) return false;
-        const score = metric.score;
-        return (
-          score >= selectedScoreRange[0] &&
-          score <= selectedScoreRange[1]
-        );
-      });
-    }
-    return queries
-      .flatMap((q) => {
-        const metric = q.metrics.find((m) => metricIdentity(m) === zoomedMetric);
-        return metric && isEvaluatedMetric(metric)
-          ? [{ query: q.query, score: metric.score, unit: metric.unit }]
-          : [];
-      })
-      .sort((a, b) => b.score - a.score);
-  }, [selectedModuleData, zoomedMetric, selectedScoreRange]);
-
-  const handleDotClick = (payload: any) => {
-    if (payload && payload.dataKey && payload.payload) {
-      const clickedData = payload.payload;
-      
-      if (clickedData.timestamp && !clickedData.date.startsWith('...')) {
-        setSelectedTimestamp(clickedData.timestamp);
-        setSelectedModule(payload.dataKey);
-        setZoomedMetric(null);
-      }
-    }
+  const fieldStyle: React.CSSProperties = {
+    padding: 8,
+    background: '#1f2937',
+    color: '#e5e7eb',
+    border: '1px solid #64748b',
+    borderRadius: 4,
+    maxWidth: '100%',
   };
-
-  const handleZoomClick = (metricName: string) => {
-    setZoomedMetric(metricName);
-    setSelectedScoreRange(null);
-  };
-  const handleZoomOut = () => setZoomedMetric(null);
-  const handleFrequencyBarClick = (data: any) => {
-    if (data && typeof data.start === 'number' && typeof data.end === 'number') {
-      setSelectedScoreRange([data.start, data.end]);
-    }
-  };
-
-  const handleRetryFetch = () => {
-      console.log('Manual Retry: Sending start!');
-      socket.send({ topic: 'start!', flow_id: 'loop_graph' });
-  };
-
-  if (evaluationRuns.length === 0 && !isDataLoaded) {
-    return (
+  return (
+    <>
       <div
         style={{
+          padding: '20px 32px',
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          gap: '20px',
-          color: 'white',
+          gap: 16,
+          flexWrap: 'wrap',
+          alignItems: 'end',
+          color: '#e5e7eb',
         }}
       >
-        <h2>데이터를 기다리는 중...</h2>
-        <p>서버와 연결되었으나 데이터가 오지 않는다면 아래 버튼을 눌러보세요.</p>
+        <label>
+          실행 선택
+          <br />
+          <select
+            aria-label="실행 선택"
+            style={fieldStyle}
+            value={selectedRun?.runId || selectedRun?.timestamp || ''}
+            onChange={(e) => {
+              setSelectedTimestamp(e.target.value);
+              resetView();
+            }}
+          >
+            {runs.map((r) => (
+              <option key={r.runId || r.timestamp} value={r.runId || r.timestamp}>
+                {r.date} · {r.runId}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          비교 기준 실행
+          <br />
+          <select
+            aria-label="비교 기준 실행"
+            style={fieldStyle}
+            value={baselineRun?.runId || baselineRun?.timestamp || ''}
+            onChange={(e) => setBaselineId(e.target.value)}
+          >
+            {baselineCandidates.map((r) => (
+              <option key={r.runId || r.timestamp} value={r.runId || r.timestamp}>
+                {r.date} · {r.runId}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          모듈
+          <br />
+          <select
+            aria-label="모듈 선택"
+            style={fieldStyle}
+            value={moduleName}
+            onChange={(e) => {
+              setSelectedModule(e.target.value);
+              resetView();
+            }}
+          >
+            {selectedRun?.modules.map((m) => (
+              <option key={m.moduleName}>{m.moduleName}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          점수 집계
+          <br />
+          <select
+            aria-label="점수 집계"
+            style={fieldStyle}
+            value={aggregation}
+            onChange={(e) => {
+              setAggregation(e.target.value as Aggregation);
+              resetView();
+            }}
+          >
+            <option value="final">질문별 마지막 실행</option>
+            <option value="query">질문별 실행 평균</option>
+            <option value="step">모든 실행 단계</option>
+          </select>
+        </label>
         <button
-          onClick={handleRetryFetch}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#4f46e5',
-            color: 'white',
-            border: 'none',
-            borderRadius: '5px',
-            cursor: 'pointer',
-            fontSize: '16px',
+          onClick={() => {
+            socket.reconnect();
+            socket.send({ topic: 'start!' });
           }}
+          style={fieldStyle}
         >
-          데이터 수동 요청 (Retry)
+          이력 새로고침
         </button>
+        <span role="status">{connection}</span>
       </div>
-    );
-  }
-
-  return (
-    <DashboardView
-      kpiData={kpiData}
-      zoomedMetric={zoomedMetric}
-      selectedDate={displayDate}
-      selectedModule={selectedModule}
-      zoomedFrequencyData={zoomedFrequencyData}
-      modulePerformanceData={modulePerformanceData}
-      handleDotClick={handleDotClick}
-      handleFrequencyBarClick={handleFrequencyBarClick}
-      moduleColors={CHART_COLORS}
-      detailedQueryData={detailedQueryData}
-      selectedScoreRange={selectedScoreRange}
-      metricDistributionData={metricDistributionData}
-      handleZoomClick={handleZoomClick}
-      handleZoomOut={handleZoomOut}
-      allModuleNames={allModuleNames}
-      metricPerformanceBreakdownData={metricPerformanceBreakdownData}
-      evaluatorHealth={selectedRun?.evaluatorHealth}
-      diagnosticObservations={selectedRun?.observations || []}
-      diagnosticInferences={selectedRun?.inferences || []}
-      configFingerprint={selectedRun?.configFingerprint || null}
-      executionTrace={selectedRun?.executionTrace || []}
-      graphHealth={selectedRun?.graphHealth}
-    />
+      {(persistenceError || selectedRun?.persisted === false) && (
+        <p role="alert" style={{ padding: '0 32px', color: '#fcd34d' }}>
+          {persistenceError || '이 실행은 이력에 저장되지 않았습니다. 화면을 다시 로드하면 결과가 사라질 수 있습니다.'}
+        </p>
+      )}
+      {error && (
+        <p role="alert" style={{ padding: '0 32px', color: '#fca5a5' }}>
+          {error}
+        </p>
+      )}
+      {!runs.length ? (
+        <p style={{ padding: 32, color: '#e5e7eb' }}>
+          {loaded
+            ? '저장된 실행이 없습니다. Test Query에서 질문을 실행하거나 Run Queries에서 질문 파일을 선택하세요.'
+            : '실행 이력을 불러오는 중입니다. 서버가 실행 중인지 확인하세요.'}
+        </p>
+      ) : (
+        <DashboardView
+          kpiData={selectedKpis(selectedRun)}
+          comparisons={comparisons}
+          baselineRun={baselineRun}
+          selectedRun={selectedRun}
+          aggregation={aggregation}
+          notEvaluated={notEvaluated}
+          zoomedMetric={zoomedMetric}
+          selectedDate={selectedRun?.date || ''}
+          selectedModule={moduleName}
+          zoomedFrequencyData={histogram(samples.map((s) => s.score))}
+          modulePerformanceData={modulePerformanceData}
+          handleDotClick={(p) => {
+            if (p?.payload?.timestamp) {
+              setSelectedTimestamp(p.payload.timestamp);
+              setSelectedModule(p.dataKey || moduleName);
+              resetView();
+            }
+          }}
+          handleFrequencyBarClick={setSelectedBin}
+          moduleColors={CHART_COLORS}
+          detailedQueryData={detailedQueryData}
+          selectedScoreRange={selectedBin ? [selectedBin.start, selectedBin.end] : null}
+          metricDistributionData={metricDistributionData}
+          metricPerformanceBreakdownData={metricPerformanceBreakdownData}
+          handleZoomClick={(m) => {
+            setZoomedMetric(m);
+            setSelectedBin(null);
+          }}
+          handleZoomOut={() => setZoomedMetric(null)}
+          allModuleNames={allModuleNames}
+          evaluatorHealth={selectedRun?.evaluatorHealth}
+          diagnosticObservations={selectedRun?.observations || []}
+          diagnosticInferences={selectedRun?.inferences || []}
+          configFingerprint={selectedRun?.configFingerprint || null}
+          executionTrace={selectedRun?.executionTrace || []}
+          graphHealth={selectedRun?.graphHealth}
+        />
+      )}
+    </>
   );
 };

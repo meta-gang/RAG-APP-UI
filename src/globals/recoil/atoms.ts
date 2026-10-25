@@ -20,7 +20,7 @@ export const naviState = atom<NavInfo>({
  * 모듈 실행 상태 타입 정의
  * pending: 대기 중, loading: 실행 중, completed: 완료됨
  */
-type ModuleStatus = 'pending' | 'loading' | 'completed';
+type ModuleStatus = 'pending' | 'loading' | 'completed' | 'failed';
 
 /**
  * 실시간 차트 데이터 인터페이스
@@ -35,11 +35,12 @@ export interface LiveMetric {
 /**
  * TestQuery 페이지의 전체 상태 인터페이스
  */
-interface TestQueryState {
+export interface TestQueryState {
   messages: { sender: 'user' | 'bot'; text: string }[]; // 채팅 메시지 목록
-  metrics: { moduleName: string; metrics: MetricScore[] }[]; // 모듈별 메트릭 결과
+  metrics: { moduleName: string; metrics: MetricScore[]; queryId?: string; query?: string }[]; // 모듈별 메트릭 결과
   moduleStatuses: Record<string, ModuleStatus>; // 각 모듈의 현재 상태
   liveMetricsHistory: LiveMetric[]; // 차트용 히스토리 데이터
+  processedQueryIds?: string[];
   activeConnections: [string, string][]; // 그래프에서 활성화된 엣지(연결선)
 }
 

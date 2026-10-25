@@ -23,3 +23,16 @@ test('production service worker output is deterministic', () => {
   assert.ok(generateSW, 'GenerateSW must be configured');
   assert.equal(generateSW.config.sourcemap, false);
 });
+
+test('session bootstrap and navigations always bypass service worker cache', () => {
+  const worker = require('../config/webpack.prod').plugins.find((p) => p.constructor?.name === 'GenerateSW').config;
+  assert.ok(worker.exclude.some((pattern) => pattern.test('ragang-session.js')));
+  assert.ok(!worker.include.some((pattern) => pattern.test('index.html')));
+  const route = worker.runtimeCaching.find((r) => r.handler === 'NetworkOnly');
+  assert.equal(route.urlPattern({ request: { mode: 'navigate' }, url: new URL('http://127.0.0.1:8080/') }), true);
+  assert.equal(
+    route.urlPattern({ request: { mode: 'cors' }, url: new URL('http://127.0.0.1:8080/ragang-session.js') }),
+    true,
+  );
+  assert.equal(route.urlPattern({ request: { mode: 'cors' }, url: new URL('http://127.0.0.1:8080/main.js') }), false);
+});

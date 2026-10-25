@@ -15,12 +15,13 @@ import { SettingsView } from './SettingsView';
 export const SettingsPage: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<number>(1);
-  const [inputMode, setInputMode] = useState<'llm-generated' | 'custom'>('llm-generated');
+  const [error, setError] = useState('');
+  const [inputMode, setInputMode] = useState<'llm-generated' | 'custom'>('custom');
 
   // [수정] 파일 목록 상태 분리 (데이터 섞임 방지)
   const [generatedFiles, setGeneratedFiles] = useState<string[]>([]);
   const [customFiles, setCustomFiles] = useState<string[]>([]);
-  
+
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const setAppLoading = useSetRecoilState(appLoadingState);
 
@@ -29,18 +30,23 @@ export const SettingsPage: React.FC = () => {
    * 의존성 배열을 비워두어 리스너가 재등록되지 않도록 함.
    */
   useEffect(() => {
-    socket.subscribe(['generated-query-files', 'custom-query-files', 'rag-on', 'ended-query', 'rag-result-data']);
+    socket.subscribe([
+      'generated-query-files',
+      'custom-query-files',
+      'rag-on',
+      'ended-query',
+      'rag-result-data',
+      'error',
+    ]);
 
     const handleGeneratedQueryFiles = (data: any) => {
       if (data.topic === 'generated-query-files' && Array.isArray(data.files)) {
-        console.log('✅ [Settings] Loaded Generated Files:', data.files);
         setGeneratedFiles(data.files);
       }
     };
 
     const handleCustomQueryFiles = (data: any) => {
       if (data.topic === 'custom-query-files' && Array.isArray(data.files)) {
-        console.log('✅ [Settings] Loaded Custom Files:', data.files);
         setCustomFiles(data.files);
       }
     };
@@ -57,8 +63,10 @@ export const SettingsPage: React.FC = () => {
       }
     };
 
+    const ended = new Set<string>();
     const handleEndedQuery = (data: any) => {
-      if (data.topic === 'ended-query') {
+      if (data.topic === 'ended-query' && typeof data['end-query'] === 'string' && !ended.has(data['end-query'])) {
+        ended.add(data['end-query']);
         setAppLoading((prev: AppLoadingState) => ({
           ...prev,
           completedQueries: prev.completedQueries + 1,
@@ -67,18 +75,29 @@ export const SettingsPage: React.FC = () => {
     };
 
     const handleRagResultData = (data: any) => {
-      if (data.topic === 'rag-result-data') {
-        setTimeout(() => {
-          setAppLoading((prev: AppLoadingState) => ({
-            ...prev,
-            isLoading: false,
-            message: 'Completed',
-            completedQueries: prev.totalQueries,
-          }));
-          navigate('/dashboard');
-        }, 1000);
+      if (data.topic !== 'rag-result-data' || !data.storage?.states) return;
+      const states = Object.values(data.storage.states) as any[];
+      const failed = states.filter((s) => s?.execution_summary?.terminated === true).length;
+      setAppLoading((prev) => ({
+        ...prev,
+        isLoading: false,
+        message: `실행 완료 ${states.length}건 · 실패 ${failed}건`,
+        completedQueries: states.length,
+      }));
+      navigate('/dashboard');
+    };
+    const handleError = (data: any) => {
+      setError(data.message || '실행하지 못했습니다. 질문 파일과 서버 상태를 확인하세요.');
+      setAppLoading((prev) => ({ ...prev, isLoading: false }));
+    };
+    const handleConnection = (data: any) => {
+      if (data.status === 'connected') {
+        socket.send({ topic: 'generated-query-files' });
+        socket.send({ topic: 'custom-query-files' });
       }
     };
+    socket.on('error', handleError);
+    socket.on('connection-state', handleConnection);
 
     socket.on('generated-query-files', handleGeneratedQueryFiles);
     socket.on('custom-query-files', handleCustomQueryFiles);
@@ -88,9 +107,8 @@ export const SettingsPage: React.FC = () => {
 
     // 초기 데이터 요청 (약간의 지연 후)
     const timer = setTimeout(() => {
-        console.log('🚀 [Settings] Requesting file lists...');
-        socket.send({ topic: 'generated-query-files' });
-        socket.send({ topic: 'custom-query-files' });
+      socket.send({ topic: 'generated-query-files' });
+      socket.send({ topic: 'custom-query-files' });
     }, 300);
 
     return () => {
@@ -99,6 +117,8 @@ export const SettingsPage: React.FC = () => {
       socket.off('rag-on', handleRagOn);
       socket.off('ended-query', handleEndedQuery);
       socket.off('rag-result-data', handleRagResultData);
+      socket.off('error', handleError);
+      socket.off('connection-state', handleConnection);
       clearTimeout(timer);
     };
   }, [setAppLoading, navigate]);
@@ -108,34 +128,35 @@ export const SettingsPage: React.FC = () => {
    */
   useEffect(() => {
     setSelectedFileName('');
-    
+
     // 탭을 바꿀 때마다 최신 목록을 다시 달라고 요청 (데이터 싱크 맞춤)
     if (inputMode === 'llm-generated') {
-        socket.send({ topic: 'generated-query-files' });
+      socket.send({ topic: 'generated-query-files' });
     } else {
-        socket.send({ topic: 'custom-query-files' });
+      socket.send({ topic: 'custom-query-files' });
     }
   }, [inputMode]);
 
   // 현재 모드에 따라 보여줄 파일 목록 결정
   const currentFileList = useMemo(() => {
-      return inputMode === 'llm-generated' ? generatedFiles : customFiles;
+    return inputMode === 'llm-generated' ? generatedFiles : customFiles;
   }, [inputMode, generatedFiles, customFiles]);
 
   // 파일 목록이 변경되거나 탭이 바뀌면 첫 번째 파일 자동 선택 (편의성)
   useEffect(() => {
-      if (currentFileList.length > 0 && !selectedFileName) {
-          setSelectedFileName(currentFileList[0]);
-      }
+    if (currentFileList.length > 0 && !selectedFileName) {
+      setSelectedFileName(currentFileList[0]);
+    }
   }, [currentFileList, selectedFileName]);
-
 
   const globalLoadingState = useRecoilValue(appLoadingState);
   const isRunning = globalLoadingState.isLoading;
-  const progress = globalLoadingState.totalQueries > 0
+  const progress =
+    globalLoadingState.totalQueries > 0
       ? Math.floor((globalLoadingState.completedQueries / globalLoadingState.totalQueries) * 100)
       : 0;
-  const progressMessage = globalLoadingState.totalQueries > 0
+  const progressMessage =
+    globalLoadingState.totalQueries > 0
       ? `${globalLoadingState.message} (${globalLoadingState.completedQueries}/${globalLoadingState.totalQueries})`
       : globalLoadingState.message;
 
@@ -156,30 +177,45 @@ export const SettingsPage: React.FC = () => {
 
   const handleRun = () => {
     if (!selectedFileName) {
-      console.error('No file selected');
+      setError('실행할 질문 파일을 선택하세요.');
       return;
     }
 
+    setError('');
+    setAppLoading((prev) => ({
+      ...prev,
+      isLoading: true,
+      message: '실행 요청 중...',
+      completedQueries: 0,
+      totalQueries: 0,
+    }));
     const topic = inputMode === 'llm-generated' ? 'run-rag-llm-query' : 'run-rag-file-query';
     socket.send({
-        topic: topic,
-        settings: { file_name: selectedFileName },
+      topic: topic,
+      settings: { file_name: selectedFileName },
     });
   };
 
   return (
-    <SettingsView
-      step={step}
-      isRunning={isRunning}
-      progress={progress}
-      progressMessage={progressMessage}
-      handleNextStep={handleNextStep}
-      handlePrevStep={handlePrevStep}
-      inputMode={inputMode}
-      setInputMode={setInputMode}
-      serverFiles={currentFileList}
-      selectedFileName={selectedFileName}
-      setSelectedFileName={setSelectedFileName}
-    />
+    <>
+      {error && (
+        <p role="alert" style={{ color: '#fca5a5', padding: 16 }}>
+          {error}
+        </p>
+      )}
+      <SettingsView
+        step={step}
+        isRunning={isRunning}
+        progress={progress}
+        progressMessage={progressMessage}
+        handleNextStep={handleNextStep}
+        handlePrevStep={handlePrevStep}
+        inputMode={inputMode}
+        setInputMode={setInputMode}
+        serverFiles={currentFileList}
+        selectedFileName={selectedFileName}
+        setSelectedFileName={setSelectedFileName}
+      />
+    </>
   );
 };

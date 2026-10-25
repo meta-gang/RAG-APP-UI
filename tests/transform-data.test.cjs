@@ -5,18 +5,7 @@ const test = require('node:test');
 const ts = require('typescript');
 
 function loadTransformData() {
-  const sourcePath = path.join(__dirname, '..', 'src', 'pages', 'Dashboard', 'transformData.ts');
-  const source = fs.readFileSync(sourcePath, 'utf8');
-  const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-    },
-    fileName: sourcePath,
-  }).outputText;
-  const localModule = { exports: {} };
-  Function('module', 'exports', 'require', compiled)(localModule, localModule.exports, require);
-  return localModule.exports.transformData;
+  return require('./load-ts.cjs').loadTS('src/pages/Dashboard/transformData.ts').transformData;
 }
 
 test('transformData preserves explicit not-evaluated metric state', () => {
@@ -101,7 +90,12 @@ test('transformData exposes evaluator health and separates diagnostic evidence',
             { code: 'evaluator.not_evaluated', stage: 'e2e', message: 'parse failed', failure_type: 'parse_error' },
           ],
           inferences: [
-            { code: 'evaluator_health_risk', possible_cause: 'judge unstable', confidence: 'medium', next_action: 'retry' },
+            {
+              code: 'evaluator_health_risk',
+              possible_cause: 'judge unstable',
+              confidence: 'medium',
+              next_action: 'retry',
+            },
           ],
         },
       },
@@ -124,15 +118,68 @@ test('transformData preserves every repeated module execution and graph trace', 
         gen: 'answer',
         snapshots: {
           rewrite: [
-            { data: {}, performances: [{ _Performance__metric: 'Score', _Performance__score: 10, _Performance__did_eval: true, _Performance__unit: '%' }] },
-            { data: {}, performances: [{ _Performance__metric: 'Score', _Performance__score: 20, _Performance__did_eval: true, _Performance__unit: '%' }] },
-            { data: {}, performances: [{ _Performance__metric: 'Score', _Performance__score: 30, _Performance__did_eval: true, _Performance__unit: '%' }] },
+            {
+              data: {},
+              performances: [
+                {
+                  _Performance__metric: 'Score',
+                  _Performance__score: 10,
+                  _Performance__did_eval: true,
+                  _Performance__unit: '%',
+                },
+              ],
+            },
+            {
+              data: {},
+              performances: [
+                {
+                  _Performance__metric: 'Score',
+                  _Performance__score: 20,
+                  _Performance__did_eval: true,
+                  _Performance__unit: '%',
+                },
+              ],
+            },
+            {
+              data: {},
+              performances: [
+                {
+                  _Performance__metric: 'Score',
+                  _Performance__score: 30,
+                  _Performance__did_eval: true,
+                  _Performance__unit: '%',
+                },
+              ],
+            },
           ],
         },
         execution_trace: [
-          { execution_id: 'exec-1', module_id: 'rewrite', execution_index: 1, revisit_count: 0, status: 'completed', latency_seconds: 0.1 },
-          { execution_id: 'exec-2', module_id: 'rewrite', execution_index: 2, revisit_count: 1, parent_execution_ids: ['exec-1'], status: 'completed', latency_seconds: 0.2 },
-          { execution_id: 'exec-3', module_id: 'rewrite', execution_index: 3, revisit_count: 2, parent_execution_ids: ['exec-2'], status: 'completed', latency_seconds: 0.3 },
+          {
+            execution_id: 'exec-1',
+            module_id: 'rewrite',
+            execution_index: 1,
+            revisit_count: 0,
+            status: 'completed',
+            latency_seconds: 0.1,
+          },
+          {
+            execution_id: 'exec-2',
+            module_id: 'rewrite',
+            execution_index: 2,
+            revisit_count: 1,
+            parent_execution_ids: ['exec-1'],
+            status: 'completed',
+            latency_seconds: 0.2,
+          },
+          {
+            execution_id: 'exec-3',
+            module_id: 'rewrite',
+            execution_index: 3,
+            revisit_count: 2,
+            parent_execution_ids: ['exec-2'],
+            status: 'completed',
+            latency_seconds: 0.3,
+          },
         ],
         execution_summary: { terminated: false },
         performances: [],
@@ -141,8 +188,14 @@ test('transformData preserves every repeated module execution and graph trace', 
   });
 
   assert.equal(run.modules[0].queries.length, 3);
-  assert.deepEqual(run.modules[0].queries.map((query) => query.executionIndex), [1, 2, 3]);
-  assert.deepEqual(run.modules[0].queries.map((query) => query.metrics[0].score), [10, 20, 30]);
+  assert.deepEqual(
+    run.modules[0].queries.map((query) => query.executionIndex),
+    [1, 2, 3],
+  );
+  assert.deepEqual(
+    run.modules[0].queries.map((query) => query.metrics[0].score),
+    [10, 20, 30],
+  );
   assert.equal(run.executionTrace.length, 3);
   assert.equal(run.executionTrace[1].parentExecutionIds[0], 'exec-1');
   assert.equal(run.graphHealth.moduleRevisits, 2);

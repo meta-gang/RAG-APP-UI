@@ -17,16 +17,9 @@ import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Accordion } from '../../components/Accordion';
 import { LiveMetric } from '../../globals/recoil/atoms';
 import { MetricScore } from '../../globals/types';
-import ReactFlow, {
-  Controls,
-  Background,
-  Handle,
-  Position,
-  Node,
-  Edge,
-  OnNodesChange,
-  OnEdgesChange,
-} from 'reactflow';
+import { MetricDetails } from '../../components/MetricDetails';
+import { metricIdentity } from '../Dashboard/analysis';
+import ReactFlow, { Controls, Background, Handle, Position, Node, Edge, OnNodesChange, OnEdgesChange } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 /**
@@ -68,6 +61,8 @@ const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
       boxShadow: '0 0 15px rgba(99, 102, 241, 0.6)',
       transform: 'scale(1.05)',
     };
+  } else if (data.status === 'failed') {
+    style = { ...style, background: '#451a1a', border: '2px solid #f87171' };
   } else if (data.status === 'completed' || data.status === 'end') {
     style = {
       ...style,
@@ -83,7 +78,10 @@ const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
         {(data.status === 'loading' || data.status === 'start') && <S.Spinner />}
         {(data.status === 'completed' || data.status === 'end') && <CheckCircle2 size={20} color="#10b981" />}
         {data.status === 'pending' && <div style={{ width: '20px' }} />}
-        <span>{data.label}</span>
+        <span>
+          {data.label}
+          {data.status === 'failed' ? ' · 실패' : ''}
+        </span>
       </div>
       <Handle type="source" position={Position.Bottom} style={{ background: '#4b5563' }} />
     </div>
@@ -104,7 +102,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <p style={{ color: '#9ca3af' }}>{`Query ${label}: "${queryData.query}"`}</p>
         {payload.map((pld: any) => (
           <p key={pld.dataKey} style={{ color: pld.color }}>
-            {`${pld.dataKey}: ${pld.value.toFixed(1)}`}
+            {`${pld.dataKey}: ${typeof pld.value === 'number' ? pld.value.toPrecision(4) : pld.value}`}
           </p>
         ))}
       </div>
@@ -119,16 +117,12 @@ interface TestQueryViewProps {
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   messages: { sender: 'user' | 'bot'; text: string }[];
-  metrics: { moduleName: string; metrics: MetricScore[] }[];
+  metrics: { moduleName: string; metrics: MetricScore[]; queryId?: string; query?: string }[];
   liveMetricsHistory: LiveMetric[];
   handleSendMessage: (e: React.FormEvent<HTMLFormElement>) => void;
   handleReset: () => void;
   handleFileUpload: (files: string[]) => void;
-  handleLLMQuery: (settings: {
-    llm_option: 'make-query' | 'made-query';
-    llm_model: string;
-    query_id: string;
-  }) => void;
+  handleLLMQuery: (settings: { llm_option: 'make-query' | 'made-query'; llm_model: string; query_id: string }) => void;
 }
 
 /**
@@ -167,7 +161,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       }
       item.metrics.forEach((m) => {
         if (!m.didEval || m.score === null) return;
-        const metricLabel = `${m.name} [${m.unit || 'unitless'}]`;
+        const metricLabel = metricIdentity(m);
         if (!groupedData[item.moduleName][metricLabel]) {
           groupedData[item.moduleName][metricLabel] = [];
         }
@@ -179,19 +173,18 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       const processedMetrics = Object.entries(metricMap).map(([metricName, scores]) => {
         const minimum = Math.min(...scores);
         const maximum = Math.max(...scores);
-        const ranges = minimum === maximum
-          ? [{ range: minimum.toPrecision(4), count: scores.length }]
-          : Array.from({ length: 10 }, (_, index) => {
-              const width = (maximum - minimum) / 10;
-              const start = minimum + index * width;
-              const end = index === 9 ? maximum : minimum + (index + 1) * width;
-              return {
-                range: `${start.toPrecision(3)}–${end.toPrecision(3)}`,
-                count: scores.filter((score) =>
-                  score >= start && (index === 9 ? score <= end : score < end)
-                ).length,
-              };
-            });
+        const ranges =
+          minimum === maximum
+            ? [{ range: minimum.toPrecision(4), count: scores.length }]
+            : Array.from({ length: 10 }, (_, index) => {
+                const width = (maximum - minimum) / 10;
+                const start = minimum + index * width;
+                const end = index === 9 ? maximum : minimum + (index + 1) * width;
+                return {
+                  range: `${start.toPrecision(3)}–${end.toPrecision(3)}`,
+                  count: scores.filter((score) => score >= start && (index === 9 ? score <= end : score < end)).length,
+                };
+              });
 
         return { name: metricName, distribution: ranges };
       });
@@ -202,7 +195,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
 
   const availableMetrics = (liveMetricsHistory || []).reduce((acc, curr) => {
     Object.keys(curr).forEach((key) => {
-      if (key !== 'query' && key !== 'queryNumber' && !acc.includes(key)) {
+      if (key !== 'query' && key !== 'queryNumber' && key !== 'queryId' && !acc.includes(key)) {
         acc.push(key);
       }
     });
@@ -250,9 +243,14 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
 
             const accordionTitle = (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
-                <span style={{ color: '#FFFFFF' }}>{moduleData.moduleName}</span>
+                <span style={{ color: '#FFFFFF' }}>
+                  {moduleData.moduleName}
+                  {moduleData.query ? ` · ${moduleData.query}` : ''}
+                </span>
                 <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
-                  <small>{count}/{totalCount} evaluated · scores retain declared units</small>
+                  <small>
+                    {count}/{totalCount} evaluated · scores retain declared units
+                  </small>
                 </span>
               </div>
             );
@@ -260,14 +258,20 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             return (
               <Accordion key={`${moduleData.moduleName}-${idx}`} title={accordionTitle}>
                 {(moduleData.metrics || []).map((metric, metricIndex) => (
-                  <S.TableRow key={metricIndex}>
-                    <span>- {metric.name}</span>
-                    <span>
-                      {metric.didEval && metric.score !== null
-                        ? formatScore(metric as MetricScore & { score: number })
-                        : 'Not evaluated'}
-                    </span>
-                  </S.TableRow>
+                  <div key={metricIndex}>
+                    <S.TableRow>
+                      <span>- {metric.name}</span>
+                      <span>
+                        {metric.didEval && metric.score !== null
+                          ? formatScore(metric as MetricScore & { score: number })
+                          : 'Not evaluated'}
+                      </span>
+                    </S.TableRow>
+                    <details>
+                      <summary>판정 근거와 평가 범위</summary>
+                      <MetricDetails metric={metric} />
+                    </details>
+                  </div>
                 ))}
               </Accordion>
             );
@@ -279,9 +283,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
         <S.Title>Live Test</S.Title>
         <S.MessageArea ref={messageAreaRef}>
           {(messages || []).length === 0 && (
-            <div style={{ textAlign: 'center', color: '#9ca3af', margin: 'auto' }}>
-              Send a query to start the test.
-            </div>
+            <div style={{ textAlign: 'center', color: '#9ca3af', margin: 'auto' }}>Send a query to start the test.</div>
           )}
           {(messages || []).map((msg, i) => (
             <S.MessageWrapper key={i} sender={msg.sender}>
@@ -290,12 +292,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
           ))}
         </S.MessageArea>
         <S.InputForm onSubmit={handleSendMessage}>
-          <S.StyledInput
-            name="queryInput"
-            type="text"
-            placeholder="Type your query here..."
-            autoFocus
-          />
+          <S.StyledInput name="queryInput" type="text" placeholder="Type your query here..." autoFocus />
           <S.SendButton type="submit">Send</S.SendButton>
         </S.InputForm>
       </S.ChatPanel>
@@ -303,28 +300,31 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
       <S.LiveScorePanel>
         <S.Title>Live Test Score Trend</S.Title>
         {(liveMetricsHistory || []).length > 0 ? (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart
-              data={liveMetricsHistory}
-              margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="queryNumber" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3af" domain={['auto', 'auto']} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              {availableMetrics.map((metricName, index) => (
-                <Line
-                  key={metricName}
-                  type="monotone"
-                  dataKey={metricName}
-                  stroke={CHART_COLORS[index % CHART_COLORS.length]}
-                  strokeWidth={2}
-                  activeDot={{ r: 8 }}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+          <div style={{ overflowY: 'auto', maxHeight: 400 }}>
+            {availableMetrics.map((metricName, index) => (
+              <div key={metricName}>
+                <p style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{metricName}</p>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={liveMetricsHistory} margin={{ top: 5, right: 20, left: 0, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis
+                      dataKey="queryNumber"
+                      stroke="#9CA3AF"
+                      label={{ value: '질문 순서', position: 'insideBottom', offset: -5 }}
+                    />
+                    <YAxis stroke="#9CA3AF" domain={['auto', 'auto']} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line
+                      type="linear"
+                      dataKey={metricName}
+                      stroke={CHART_COLORS[index % CHART_COLORS.length]}
+                      connectNulls={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ))}
+          </div>
         ) : (
           <div style={{ color: '#9ca3af', textAlign: 'center', margin: 'auto' }}>
             Live test score trends will be charted here.
