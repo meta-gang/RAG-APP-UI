@@ -9,6 +9,33 @@ export const DashboardContainer = styled.div`
   gap: 2rem;
 `;
 
+/** Selected-run context stays compact so primary values remain above the fold. */
+export const RunSummary = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #d1d5db;
+
+  p {
+    margin: 0;
+    padding: 0;
+  }
+
+  summary {
+    cursor: pointer;
+    color: #e5e7eb;
+  }
+
+  details > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+  }
+`;
+
 /**
  * 그리드 컨테이너: 반응형 1~3열 레이아웃
  */
@@ -212,19 +239,19 @@ export const ModalOverlay = styled.div`
 `;
 
 export const ZoomedViewContainer = styled.div`
-    display: flex;
-    gap: 1.5rem;
-    flex-grow: 1;
-    min-height: 0;
-    height: 100%;
+  display: flex;
+  gap: 1.5rem;
+  flex-grow: 1;
+  min-height: 0;
+  height: 100%;
 `;
 
 export const ZoomedChartWrapper = styled.div`
-    flex: 3;
+  flex: 3;
 `;
 
 export const ZoomedQueryWrapper = styled.div`
-    flex: 2;
-    display: flex;
-    flex-direction: column;
+  flex: 2;
+  display: flex;
+  flex-direction: column;
 `;

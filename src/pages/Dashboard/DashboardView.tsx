@@ -101,59 +101,46 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   return (
     <S.DashboardContainer>
-      <S.QueryInfoText>
-        선택 실행: {selectedRun?.runId} · {selectedDate}
-      </S.QueryInfoText>
-      <S.QueryInfoText>
-        질문 실행: {selectedRun?.pipelineHealth?.attempted ?? '미기록'}건 · 성공{' '}
-        {selectedRun?.pipelineHealth?.succeeded ?? '미기록'} · 실패 {selectedRun?.pipelineHealth?.failed ?? '미기록'} ·
-        상태 미기록 {selectedRun?.pipelineHealth?.unknown ?? '미기록'}
-      </S.QueryInfoText>
-      <S.QueryInfoText>
-        평가 성공률은 기록된 평가 시도 중 계산이 완료된 비율입니다. 답변 정확도와 질문 실행 성공률은 별도로 확인하세요.
-      </S.QueryInfoText>
-      {selectedRun?.evaluationPlan && (
-        <S.QueryInfoText>
-          미도달 E2E 평가 {selectedRun.evaluationPlan.notReachedE2E}건 · 실행하지 않은 모듈의 설정 지표{' '}
-          {selectedRun.evaluationPlan.notReachedModuleMetrics}건 (
-          {selectedRun.evaluationPlan.notReachedModules.join(', ') || '없음'}). 비활성 분기일 수 있으므로 미평가 실패와
-          구분합니다.
-        </S.QueryInfoText>
-      )}
-      {selectedRun?.timing && (
-        <S.QueryInfoText>
-          모듈 실행 시간 합 {selectedRun.graphHealth.totalLatencySeconds.toFixed(3)}초 · 평가 시간 합{' '}
-          {selectedRun.timing.evaluatorSeconds.toFixed(3)}초 · 질문별 전체 소요 시간 합{' '}
-          {selectedRun.timing.queryWallSecondsSum.toFixed(3)}초. 동시 배치의 실제 경과 시간과는 다릅니다.
-        </S.QueryInfoText>
-      )}
-      {selectedRun?.queryOutcomes?.some((q) => q.status !== 'succeeded') && (
-        <S.ChartBox>
-          <S.BoxTitleH3>완료되지 않은 질문</S.BoxTitleH3>
-          {selectedRun.queryOutcomes
-            .filter((q) => q.status !== 'succeeded')
-            .map((q) => (
-              <S.QueryItem key={q.queryId}>
-                <S.QueryText>
-                  {q.query} · {q.status === 'failed' ? '실패' : '상태 미기록'}
-                </S.QueryText>
-                <S.QueryInfoText>
-                  {q.queryId} · 종료 이유: {q.reason || '미기록'}
-                </S.QueryInfoText>
-              </S.QueryItem>
-            ))}
-        </S.ChartBox>
-      )}
-
-      <S.QueryInfoText>
-        점수 집계:{' '}
-        {aggregation === 'step'
-          ? '실행 단계마다 1표본'
-          : aggregation === 'query'
-            ? '질문별 실행 평균에 동일 가중치'
-            : '질문별 마지막 모듈 실행에 동일 가중치'}
-        . 미평가 점수는 평균·분포에서 제외합니다.
-      </S.QueryInfoText>
+      <S.RunSummary aria-label="선택 실행 요약">
+        <p>
+          선택 실행: {selectedDate} · {selectedRun?.runId}
+        </p>
+        <p>
+          질문 실행 {selectedRun?.pipelineHealth?.attempted ?? '미기록'}건 · 성공{' '}
+          {selectedRun?.pipelineHealth?.succeeded ?? '미기록'} · 실패 {selectedRun?.pipelineHealth?.failed ?? '미기록'}{' '}
+          · 상태 미기록 {selectedRun?.pipelineHealth?.unknown ?? '미기록'}
+        </p>
+        <p>평가 성공률은 기록된 평가의 계산 완료 비율입니다. 답변 정확도와 질문 실행 성공률은 별도로 확인하세요.</p>
+        <details>
+          <summary>집계 기준·평가 범위·시간 설명</summary>
+          <div>
+            <p>
+              점수 집계:{' '}
+              {aggregation === 'step'
+                ? '실행 단계마다 1표본'
+                : aggregation === 'query'
+                  ? '질문별 실행 평균에 동일 가중치'
+                  : '질문별 마지막 모듈 실행에 동일 가중치'}
+              . 미평가 점수는 평균·분포에서 제외합니다.
+            </p>
+            {selectedRun?.evaluationPlan && (
+              <p>
+                미도달 E2E 평가 {selectedRun.evaluationPlan.notReachedE2E}건 · 실행하지 않은 모듈의 설정 지표{' '}
+                {selectedRun.evaluationPlan.notReachedModuleMetrics}건 (
+                {selectedRun.evaluationPlan.notReachedModules.join(', ') || '없음'}). 비활성 분기일 수 있으므로 미평가
+                실패와 구분합니다.
+              </p>
+            )}
+            {selectedRun?.timing && (
+              <p>
+                모듈 실행 시간 합 {selectedRun.graphHealth.totalLatencySeconds.toFixed(3)}초 · 평가 시간 합{' '}
+                {selectedRun.timing.evaluatorSeconds.toFixed(3)}초 · 질문별 전체 소요 시간 합{' '}
+                {selectedRun.timing.queryWallSecondsSum.toFixed(3)}초. 동시 배치의 실제 경과 시간과는 다릅니다.
+              </p>
+            )}
+          </div>
+        </details>
+      </S.RunSummary>
       <S.KpiCardWrapper>
         <Swiper
           modules={[Navigation]}
@@ -186,6 +173,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </S.CarouselArrow>
       </S.KpiCardWrapper>
 
+      {selectedRun?.queryOutcomes?.some((q) => q.status !== 'succeeded') && (
+        <S.ChartBox>
+          <S.BoxTitleH3>완료되지 않은 질문</S.BoxTitleH3>
+          {selectedRun.queryOutcomes
+            .filter((q) => q.status !== 'succeeded')
+            .map((q) => (
+              <S.QueryItem key={q.queryId}>
+                <S.QueryText>
+                  {q.query} · {q.status === 'failed' ? '실패' : '상태 미기록'}
+                </S.QueryText>
+                <S.QueryInfoText>
+                  {q.queryId} · 종료 이유: {q.reason || '미기록'}
+                </S.QueryInfoText>
+              </S.QueryItem>
+            ))}
+        </S.ChartBox>
+      )}
       {baselineRun && (
         <S.ChartBox>
           <S.BoxTitleH3>동일 질문의 마지막 실행 비교 · {selectedModule}</S.BoxTitleH3>
