@@ -16,13 +16,9 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { Expand, ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Expand, ArrowLeft } from 'lucide-react';
 import * as S from './Dashboard.styled';
 import { KPICard } from '../../components/KPICard';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/navigation';
 import type {
   DiagnosticInference,
   DiagnosticObservation,
@@ -141,36 +137,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </details>
       </S.RunSummary>
-      <S.KpiCardWrapper>
-        <Swiper
-          modules={[Navigation]}
-          spaceBetween={24}
-          slidesPerView={'auto'}
-          navigation={{
-            nextEl: '.arrow-right',
-            prevEl: '.arrow-left',
-          }}
-          className="swiper-container"
-        >
-          <SwiperSlide>
-            <KPICard title="Evaluated Metrics" value={kpiData.evaluatedMetrics} />
-          </SwiperSlide>
-          <SwiperSlide>
-            <KPICard title="Not Evaluated" value={kpiData.notEvaluatedMetrics} />
-          </SwiperSlide>
-          <SwiperSlide>
-            <KPICard title="Trace Executions" value={kpiData.traceExecutions} />
-          </SwiperSlide>
-          <SwiperSlide>
-            <KPICard title="평가 성공률" value={kpiData.evaluatorCoverage} />
-          </SwiperSlide>
-        </Swiper>
-        <S.CarouselArrow className="arrow-left">
-          <ChevronLeft size={20} />
-        </S.CarouselArrow>
-        <S.CarouselArrow className="arrow-right">
-          <ChevronRight size={20} />
-        </S.CarouselArrow>
+      <S.KpiCardWrapper aria-label="선택 실행의 평가 지표 요약">
+        <KPICard title="Evaluated Metrics" value={kpiData.evaluatedMetrics} />
+        <KPICard title="Not Evaluated" value={kpiData.notEvaluatedMetrics} />
+        <KPICard title="Trace Executions" value={kpiData.traceExecutions} />
+        <KPICard title="평가 성공률" value={kpiData.evaluatorCoverage} />
       </S.KpiCardWrapper>
 
       {selectedRun?.queryOutcomes?.some((q) => q.status !== 'succeeded') && (
@@ -221,6 +192,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {row.pairedQueries} / {row.evaluatedPairs}
                       <small style={{ display: 'block' }}>
                         기준 {row.baselineQueries}, 선택 {row.candidateQueries}, 짝 없는 질문 {row.unmatchedQueries}
+                      </small>
+                      <small style={{ display: 'block' }}>
+                        양쪽 모듈 기록 {row.pairedModuleRecords}, 한쪽 이상 모듈 미도달 {row.missingModulePairs}
                       </small>
                     </td>
                     <td>{row.baselineMean?.toPrecision(4) ?? '미평가'}</td>

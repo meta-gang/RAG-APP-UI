@@ -225,6 +225,24 @@ test('paired comparison never treats changed questions or judges as a numeric im
     explicitAfter = { ...q('same text', 'c', 0.9), sampleId: 'second' };
   rows = analysis.compareModuleRuns(run('before', [explicitBefore]), run('after', [explicitAfter]), 'ret');
   assert.equal(rows[0].pairedQueries, 0);
+  const prior = run('before', [q('one', 'b1', 0.1), q('two', 'b2', 0.2)]);
+  const next = run('after', [q('one', 'c1', 0.2), q('two', 'c2', 0.3), q('three', 'c3', 0.4)]);
+  prior.queryOutcomes = [
+    { queryId: 'b1', query: 'one', answer: 'a' },
+    { queryId: 'b2', query: 'two', answer: 'a' },
+    { queryId: 'b3', query: 'three', answer: '' },
+  ];
+  next.queryOutcomes = [
+    { queryId: 'c1', query: 'one', answer: 'a' },
+    { queryId: 'c2', query: 'two', answer: 'a' },
+    { queryId: 'c3', query: 'three', answer: 'a' },
+  ];
+  rows = analysis.compareModuleRuns(prior, next, 'ret');
+  assert.equal(rows[0].pairedQueries, 3);
+  assert.equal(rows[0].pairedModuleRecords, 2);
+  assert.equal(rows[0].missingModulePairs, 1);
+  assert.equal(rows[0].unmatchedQueries, 0);
+  assert.equal(rows[0].evaluatedPairs, 2);
 });
 
 test('server restart refreshes the same-origin bootstrap before reconnecting with a rotated token', () => {

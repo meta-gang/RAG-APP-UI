@@ -99,7 +99,14 @@ export function transformData(storage: any): EvaluationRun {
         : summary.success === true || reason === 'answer' || (answerText.trim() && !reason)
           ? 'succeeded'
           : 'unknown';
-    queryOutcomes.push({ queryId, query: queryText, answer: answerText, status, reason });
+    queryOutcomes.push({
+      queryId,
+      sampleId: typeof q.sample_id === 'string' ? q.sample_id : undefined,
+      query: queryText,
+      answer: answerText,
+      status,
+      reason,
+    });
     if (status === 'failed') terminatedQueries++;
     if (typeof q.run_metadata?.config_fingerprint === 'string') fingerprints.add(q.run_metadata.config_fingerprint);
     array(q.execution_trace)

@@ -179,10 +179,30 @@ export function compareModuleRuns(
     });
     return Array.from(groups.values());
   };
-  const left = last(before),
-    right = last(after),
+  type RunSample = QueryEvaluation & { moduleRecorded: boolean };
+  const universe = (run: EvaluationRun, records: QueryEvaluation[]): RunSample[] => {
+    if (!run.queryOutcomes?.length) return records.map((q) => ({ ...q, moduleRecorded: true }));
+    const byId = new Map(records.map((q) => [q.queryId, q]));
+    return run.queryOutcomes.map((q) => {
+      const record = byId.get(q.queryId);
+      return record
+        ? { ...record, moduleRecorded: true }
+        : {
+            query: q.query,
+            queryId: q.queryId,
+            sampleId: q.sampleId,
+            answer: q.answer,
+            metrics: [],
+            moduleRecorded: false,
+          };
+    });
+  };
+  // Pair the attempted-query universe first so an upstream failure cannot
+  // disappear merely because this particular module was never reached.
+  const left = universe(baseline, last(before)),
+    right = universe(candidate, last(after)),
     remaining = [...right],
-    pairs: [QueryEvaluation, QueryEvaluation][] = [];
+    pairs: [RunSample, RunSample][] = [];
   left.forEach((q) => {
     let i = q.sampleId ? remaining.findIndex((r) => q.sampleId === r.sampleId && q.query === r.query) : -1;
     if (i < 0 && !q.sampleId)
@@ -211,6 +231,8 @@ export function compareModuleRuns(
     return {
       identity,
       pairedQueries: pairs.length,
+      pairedModuleRecords: pairs.filter(([a, b]) => a.moduleRecorded && b.moduleRecorded).length,
+      missingModulePairs: pairs.filter(([a, b]) => !a.moduleRecorded || !b.moduleRecorded).length,
       evaluatedPairs: eligible.length,
       baselineQueries: left.length,
       candidateQueries: right.length,

@@ -49,62 +49,18 @@ export const GridContainer = styled.div`
   }
 `;
 
-/**
- * KPI 카드 래퍼: Swiper와 화살표 버튼을 포함
- */
+/** All four primary values remain visible without carousel interaction. */
 export const KpiCardWrapper = styled.div`
-  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
 
-  @media (min-width: 640px) {
-    .swiper-container {
-      padding: 0 2.5rem;
-    }
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .swiper-slide {
-    width: auto;
-  }
-`;
-
-/**
- * 캐러셀 화살표 버튼 스타일
- */
-export const CarouselArrow = styled.button`
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.2s;
-
-  @media (min-width: 640px) {
-    display: flex;
-  }
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
-  &.arrow-left {
-    left: 0;
-  }
-
-  &.arrow-right {
-    right: 0;
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
   }
 `;
 

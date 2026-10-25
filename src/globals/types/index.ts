@@ -107,7 +107,14 @@ export type EvaluationRun = {
   runId?: string;
   persisted?: boolean;
   pipelineHealth?: { attempted: number; succeeded: number; failed: number; unknown: number };
-  queryOutcomes?: { queryId: string; query: string; answer: string; status: string; reason: string }[];
+  queryOutcomes?: {
+    queryId: string;
+    sampleId?: string;
+    query: string;
+    answer: string;
+    status: string;
+    reason: string;
+  }[];
   evaluationPlan?: { notReachedE2E: number; notReachedModuleMetrics: number; notReachedModules: string[] };
   timing?: { evaluatorSeconds: number; queryWallSecondsSum: number };
 };
