@@ -389,7 +389,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <S.QueryItem key={i}>
                           <S.QueryText title={q.query}>
                             {queryText(q.queryId, q.query)}
-                            {q.executionIndex ? ` · 실행 ${q.executionIndex}` : ''}
+                            {q.executionIndex ? ` · 모듈 ${q.executionIndex}회차` : ''}
                           </S.QueryText>
                           <S.ScoreWrapper>
                             <S.MetricName>{metricText(zoomedMetric)}</S.MetricName>
