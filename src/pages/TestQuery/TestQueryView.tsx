@@ -21,6 +21,7 @@ import { MetricDetails } from '../../components/MetricDetails';
 import { TechnicalDetails } from '../../components/TechnicalDetails';
 import { metricDisplayCatalog, moduleDisplayName, liveSeriesDisplayNames } from '../../utils/display';
 import { metricIdentity } from '../Dashboard/analysis';
+import { GRAPH_NODE_WIDTH, GRAPH_FIT_VIEW_OPTIONS } from './graph';
 import ReactFlow, { Controls, Background, Handle, Position, Node, Edge, OnNodesChange, OnEdgesChange } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -46,7 +47,9 @@ const ModuleNode = ({ data }: { data: { label: string; status: string } }) => {
     borderRadius: '12px',
     border: '2px solid #4b5563',
     color: '#E5E7EB',
-    minWidth: '250px',
+    width: GRAPH_NODE_WIDTH,
+    maxWidth: GRAPH_NODE_WIDTH,
+    overflowWrap: 'anywhere',
     textAlign: 'center',
     fontSize: '1rem',
     fontWeight: 600,
@@ -231,6 +234,8 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={GRAPH_FIT_VIEW_OPTIONS}
+          minZoom={GRAPH_FIT_VIEW_OPTIONS.minZoom}
           proOptions={{ hideAttribution: true }}
         >
           <Background />

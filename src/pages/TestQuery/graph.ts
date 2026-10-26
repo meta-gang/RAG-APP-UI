@@ -1,4 +1,10 @@
 export type GraphPair = [string, string];
+export const GRAPH_NODE_WIDTH = 280;
+export const GRAPH_NODE_HEIGHT = 120;
+export const GRAPH_FIT_VIEW_OPTIONS = { padding: 0.15, minZoom: 0.1, maxZoom: 1 };
+const MAX_COLUMNS = 3;
+const COLUMN_SPACING = 360;
+const ROW_SPACING = 180;
 
 /** Strongly connected components identify actual cycles; a cross edge in a DAG is never a loop. */
 export function layoutGraph(input: GraphPair[], additionalIds: string[] = []) {
@@ -66,7 +72,23 @@ export function layoutGraph(input: GraphPair[], additionalIds: string[] = []) {
     rows.set(level, [...(rows.get(level) || []), id]);
   });
   const positions = new Map<string, { x: number; y: number }>();
-  rows.forEach((row, level) => row.forEach((id, i) => positions.set(id, { x: i * 360, y: level * 180 })));
+  const columns = Math.min(MAX_COLUMNS, Math.max(1, ...Array.from(rows.values()).map((row) => row.length)));
+  let nextY = 0;
+  // A large SCC shares a topological level but must not become one unbounded
+  // horizontal row. Reserve every wrapped row before laying out downstream levels.
+  Array.from(rows.entries())
+    .sort(([a], [b]) => a - b)
+    .forEach(([, row]) => {
+      const rowCount = Math.ceil(row.length / columns);
+      row.forEach((id, index) => {
+        const wrappedRow = Math.floor(index / columns),
+          column = index % columns;
+        const countInRow = Math.min(columns, row.length - wrappedRow * columns);
+        const centerOffset = ((columns - countInRow) * COLUMN_SPACING) / 2;
+        positions.set(id, { x: centerOffset + column * COLUMN_SPACING, y: nextY + wrappedRow * ROW_SPACING });
+      });
+      nextY += rowCount * ROW_SPACING;
+    });
   return {
     nodes: ids.map((id) => ({ id, position: positions.get(id)! })),
     edges: pairs.map(([source, target]) => ({
