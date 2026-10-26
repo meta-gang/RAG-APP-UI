@@ -5,6 +5,8 @@ import { testQueryState } from '../../globals/recoil/atoms';
 import { TestQueryView } from './TestQueryView';
 import { socket } from '../../apis/socket';
 import { layoutGraph, GraphPair } from './graph';
+import { TechnicalDetails } from '../../components/TechnicalDetails';
+import { moduleDisplayNames, questionDisplayName } from '../../utils/display';
 import { appendLiveResult, normalizedStatus, statusKey } from './liveData';
 
 export const TestQueryPage: React.FC = () => {
@@ -23,7 +25,7 @@ export const TestQueryPage: React.FC = () => {
       if (typeof data.module !== 'string') return;
       const queryId = typeof data.query_id === 'string' ? data.query_id : '';
       if (queryId) {
-        setQueryLabels((prev) => ({ ...prev, [queryId]: prev[queryId] || queryId }));
+        setQueryLabels((prev) => ({ ...prev, [queryId]: prev[queryId] || '' }));
         setActiveQuery((prev) => prev || queryId);
       }
       setState((prev) => ({
@@ -34,7 +36,7 @@ export const TestQueryPage: React.FC = () => {
     const result = (data: any) => {
       if (!data.storage?.states) return;
       Object.entries(data.storage.states).forEach(([id, s]: [string, any]) => {
-        setQueryLabels((prev) => ({ ...prev, [id]: typeof s?.query === 'string' ? s.query : id }));
+        setQueryLabels((prev) => ({ ...prev, [id]: typeof s?.query === 'string' ? s.query : '' }));
         setActiveQuery((prev) => prev || id);
       });
       setState((prev) => appendLiveResult(prev, data.storage.states));
@@ -69,11 +71,15 @@ export const TestQueryPage: React.FC = () => {
     };
   }, [setState]);
   const graph = useMemo(() => layoutGraph(modulePairs, moduleIds), [modulePairs, moduleIds]);
+  const moduleLabels = moduleDisplayNames([
+    ...graph.nodes.map((node) => node.id),
+    ...state.metrics.map((group) => group.moduleName),
+  ]);
   const nodes = graph.nodes.map((node) => ({
     ...node,
     type: 'moduleNode',
     data: {
-      label: node.id,
+      label: moduleLabels[node.id],
       status: state.moduleStatuses[statusKey(node.id, activeQuery)] || state.moduleStatuses[node.id] || 'pending',
     },
     draggable: false,
@@ -123,19 +129,26 @@ export const TestQueryPage: React.FC = () => {
         <label>
           상태를 볼 질문{' '}
           <select aria-label="상태를 볼 질문" value={activeQuery} onChange={(e) => setActiveQuery(e.target.value)}>
-            {Object.entries(queryLabels).map(([id, label]) => (
+            {Object.entries(queryLabels).map(([id, label], index) => (
               <option value={id} key={id}>
-                {label} · {id}
+                {questionDisplayName(label, index + 1)}
               </option>
             ))}
           </select>
         </label>
+        <TechnicalDetails
+          entries={[
+            ['선택 질문 ID', activeQuery],
+            ['모듈 ID와 표시 이름', moduleLabels],
+          ]}
+        />
         <p>
           각 질문의 실행 상태를 따로 표시합니다. 점수는 지표별 원래 단위({units.join(', ') || '아직 없음'})로
           표시합니다.
         </p>
       </div>
       <TestQueryView
+        moduleLabels={moduleLabels}
         nodes={nodes}
         edges={edges}
         onNodesChange={() => {}}

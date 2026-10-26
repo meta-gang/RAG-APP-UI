@@ -2,6 +2,11 @@
 /**
  * @description 단일 평가 지표(Metric)의 이름과 점수를 나타냅니다.
  */
+export type MetricScope = {
+  input_execution_ids?: Record<string, string>;
+  [field: string]: string | number | boolean | Record<string, string> | undefined;
+};
+
 export type MetricScore = {
   name: string; // 예: "Context-Relevancy"
   score: number | null; // 평가 실패/미실행이면 null
@@ -16,7 +21,7 @@ export type MetricScore = {
     source_document_indices?: number[];
     reason?: string;
   }[];
-  scope?: Record<string, any>;
+  scope?: MetricScope;
   direction?: string | null;
   metricVersion?: string | null;
   sourceDocuments?: string[];

@@ -5,27 +5,15 @@ export const isEvaluatedMetric = (metric: MetricScore): metric is MetricScore & 
 
 /** Keep evaluator/version changes as separate chart series even when names match. */
 export function metricIdentity(metric: MetricScore): string {
-  const evaluator = metric.evaluator;
-  const models = Array.isArray(evaluator?.adapters)
-    ? evaluator!.adapters
-        .filter((a: any) => a && typeof a === 'object' && !Array.isArray(a))
-        .map(
-          (a: any) =>
-            `${typeof a.role === 'string' ? a.role : 'adapter'}:${typeof a.model === 'string' ? a.model : typeof a.implementation === 'string' ? a.implementation : 'unknown'}`,
-        )
-        .sort()
-        .join(',')
-    : '';
-  const identity = evaluatorIdentity(evaluator) || '';
-  // The readable suffix remains available in titles; no credentials or prompt text are included.
-  const suffix = [
-    metric.metricVersion && `v${metric.metricVersion}`,
-    models,
-    identity && `config:${evaluator?.fingerprint || 'legacy'}:${stableHash(identity)}`,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  return `${metric.name} [${metric.unit || 'unitless'}]${suffix ? ` · ${suffix}` : ''}`;
+  // Keys preserve the full canonical evaluator. Human labels are supplied by
+  // the display catalog, so no lossy hash is needed for calculation identity.
+  return JSON.stringify([
+    metric.name,
+    metric.unit,
+    metric.metricVersion ?? null,
+    metric.direction ?? null,
+    evaluatorIdentity(metric.evaluator),
+  ]);
 }
 export function evaluatorIdentity(evaluator?: Record<string, any>): string | null {
   const canonical = (value: any): any =>
@@ -40,12 +28,6 @@ export function evaluatorIdentity(evaluator?: Record<string, any>): string | nul
         : value;
   return evaluator ? JSON.stringify(canonical(evaluator)) : null;
 }
-function stableHash(value: string) {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
-  return (hash >>> 0).toString(16);
-}
-
 export type Aggregation = 'step' | 'query' | 'final';
 export type MetricSample = {
   query: string;

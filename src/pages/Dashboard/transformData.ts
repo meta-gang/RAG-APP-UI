@@ -4,6 +4,7 @@ import type {
   EvaluationRun,
   ExecutionTraceEvent,
   MetricScore,
+  MetricScope,
   ModuleEvaluation,
   QueryEvaluation,
 } from '@type/index';
@@ -16,12 +17,36 @@ const object = (value: any): value is Record<string, any> =>
 const array = (value: any): any[] => (Array.isArray(value) ? value : []);
 const string = (value: any, fallback = ''): string => (typeof value === 'string' ? value : fallback);
 
+function normalizeScope(scope: Record<string, any>): MetricScope {
+  const result: MetricScope = {};
+  Object.entries(scope).forEach(([name, value]) => {
+    if (name === 'input_execution_ids') return;
+    if (
+      typeof value === 'boolean' ||
+      typeof value === 'string' ||
+      (typeof value === 'number' && Number.isFinite(value))
+    )
+      result[name] = value;
+  });
+  const bindings = scope.input_execution_ids;
+  if (
+    object(bindings) &&
+    Object.entries(bindings).every(([reference, id]) => reference.length > 0 && typeof id === 'string' && id.length > 0)
+  )
+    result.input_execution_ids = { ...bindings };
+  return result;
+}
+
 /** Preserve a successful zero while keeping malformed scores and explicit failures unevaluated. */
 export function normalizeMetric(performance: any, fallbackName = 'Unknown'): MetricScore {
   const score = field(performance, 'score');
   const rawDidEval = performance?.didEval ?? field(performance, 'did_eval');
   const valid = typeof score === 'number' && Number.isFinite(score);
-  const didEval = rawDidEval === undefined ? valid : rawDidEval === true && valid;
+  const rawName = field(performance, 'metric'),
+    rawUnit = field(performance, 'unit');
+  const invalidMetadata =
+    typeof rawName !== 'string' || !rawName.trim() || (rawUnit !== undefined && typeof rawUnit !== 'string');
+  const didEval = !invalidMetadata && (rawDidEval === undefined ? valid : rawDidEval === true && valid);
   const evaluator = field(performance, 'evaluator'),
     failure = field(performance, 'failure'),
     scope = field(performance, 'scope'),
@@ -34,24 +59,19 @@ export function normalizeMetric(performance: any, fallbackName = 'Unknown'): Met
     didEval,
     unit: string(field(performance, 'unit')),
     ...(object(evaluator) && Object.keys(evaluator).length ? { evaluator } : {}),
-    ...(object(failure)
-      ? {
-          failure: {
-            type: string(failure.type, 'not_evaluated'),
-            message: string(failure.message, '평가 실패 상세를 읽을 수 없습니다.'),
-          },
-        }
-      : {}),
+    ...(invalidMetadata
+      ? { failure: { type: 'invalid_metric_metadata', message: '지표 이름 또는 단위 형식이 올바르지 않습니다.' } }
+      : object(failure)
+        ? {
+            failure: {
+              type: string(failure.type, 'not_evaluated'),
+              message: string(failure.message, '평가 실패 상세를 읽을 수 없습니다.'),
+            },
+          }
+        : {}),
     ...(object(scope) && Object.keys(scope).length
       ? {
-          scope: Object.fromEntries(
-            Object.entries(scope).filter(
-              ([, value]) =>
-                typeof value === 'boolean' ||
-                typeof value === 'string' ||
-                (typeof value === 'number' && Number.isFinite(value)),
-            ),
-          ),
+          scope: normalizeScope(scope),
         }
       : {}),
     ...(Array.isArray(evidence) && evidence.length
@@ -158,20 +178,39 @@ export function transformData(storage: any): EvaluationRun {
       array(rawSnapshots)
         .filter(object)
         .forEach((snapshot, index) => {
-          const metrics = array(snapshot.performances).map((p) => normalizeMetric(p));
+          const rawMetrics = array(snapshot.performances);
+          const metrics = rawMetrics.map((p) => normalizeMetric(p));
           // Starter metrics are real attempts too; only metric-free input nodes are omitted.
           if ((snapshot.is_starter === true || moduleName === 'starter') && !metrics.length) return;
           const executionIndex = index + 1;
           const event = executionTrace.find(
             (e) => e.queryId === queryId && e.moduleId === moduleName && e.executionIndex === executionIndex,
           );
-          metrics.forEach((metric) => {
+          metrics.forEach((metric, metricIndex) => {
             const references = Array.isArray(metric.evaluator?.parameter_sources)
               ? metric.evaluator!.parameter_sources
               : [];
             const ref = references.find((r: any) => typeof r === 'string' && r.endsWith('.ret_docs'));
             if (!ref) return;
             const sourceModule = ref.slice(0, -'.ret_docs'.length);
+            const rawScope = field(rawMetrics[metricIndex], 'scope');
+            if (object(rawScope) && Object.hasOwn(rawScope, 'input_execution_ids')) {
+              const boundExecution = metric.scope?.input_execution_ids?.[ref];
+              const boundEvent = executionTrace.find(
+                (source) =>
+                  source.queryId === queryId &&
+                  source.moduleId === sourceModule &&
+                  source.executionId === boundExecution,
+              );
+              const boundPacket = boundEvent
+                ? array(snapshots[sourceModule])[boundEvent.executionIndex - 1]
+                : undefined;
+              const boundDocuments = boundPacket?.data?.ret_docs;
+              if (Array.isArray(boundDocuments) && boundDocuments.every((document) => typeof document === 'string'))
+                metric.sourceDocuments = boundDocuments;
+              return;
+            }
+
             const ancestors = new Set<string>();
             const visit = (id: string) => {
               if (ancestors.has(id)) return;

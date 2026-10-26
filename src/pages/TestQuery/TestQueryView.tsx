@@ -18,6 +18,8 @@ import { Accordion } from '../../components/Accordion';
 import { LiveMetric } from '../../globals/recoil/atoms';
 import { MetricScore } from '../../globals/types';
 import { MetricDetails } from '../../components/MetricDetails';
+import { TechnicalDetails } from '../../components/TechnicalDetails';
+import { metricDisplayCatalog, moduleDisplayName, liveSeriesDisplayNames } from '../../utils/display';
 import { metricIdentity } from '../Dashboard/analysis';
 import ReactFlow, { Controls, Background, Handle, Position, Node, Edge, OnNodesChange, OnEdgesChange } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -94,15 +96,15 @@ const nodeTypes = { moduleNode: ModuleNode };
  * 차트 툴팁 컴포넌트입니다.
  * 마우스 오버 시 해당 쿼리의 메트릭 점수들을 표시합니다.
  */
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label, seriesLabels }: any) => {
   if (active && payload && payload.length) {
     const queryData = payload[0].payload;
     return (
       <div style={{ backgroundColor: '#1f2937', border: '1px solid #374151', padding: '10px', borderRadius: '5px' }}>
-        <p style={{ color: '#9ca3af' }}>{`Query ${label}: "${queryData.query}"`}</p>
+        <p style={{ color: '#9ca3af' }}>{`질문: "${queryData.query}"`}</p>
         {payload.map((pld: any) => (
           <p key={pld.dataKey} style={{ color: pld.color }}>
-            {`${pld.dataKey}: ${typeof pld.value === 'number' ? pld.value.toPrecision(4) : pld.value}`}
+            {`${seriesLabels[pld.dataKey] || '지표'}: ${typeof pld.value === 'number' ? pld.value.toPrecision(4) : pld.value}`}
           </p>
         ))}
       </div>
@@ -112,6 +114,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 interface TestQueryViewProps {
+  moduleLabels: Record<string, string>;
   nodes: Node[];
   edges: Edge[];
   onNodesChange: OnNodesChange;
@@ -133,6 +136,7 @@ interface TestQueryViewProps {
  */
 export const TestQueryView: React.FC<TestQueryViewProps> = ({
   nodes,
+  moduleLabels,
   edges,
   onNodesChange,
   onEdgesChange,
@@ -145,6 +149,14 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
   handleLLMQuery,
 }) => {
   const messageAreaRef = useRef<HTMLDivElement>(null);
+  const metricCatalog = useRef(metricDisplayCatalog);
+  const metricLabels = useMemo(
+    () => metricCatalog.current.labelsFor(metrics.flatMap((group) => group.metrics)),
+    [metrics],
+  );
+  const metricText = (identity: string) => metricLabels[identity] || '지표';
+  const moduleText = (id: string) => moduleLabels[id] || moduleDisplayName(id);
+  const seriesLabels = liveSeriesDisplayNames(metrics, metricLabels, moduleLabels);
 
   useEffect(() => {
     if (messageAreaRef.current) {
@@ -244,7 +256,7 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
             const accordionTitle = (
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '1rem' }}>
                 <span style={{ color: '#FFFFFF' }}>
-                  {moduleData.moduleName}
+                  {moduleText(moduleData.moduleName)}
                   {moduleData.query ? ` · ${moduleData.query}` : ''}
                 </span>
                 <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>
@@ -257,10 +269,16 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
 
             return (
               <Accordion key={`${moduleData.moduleName}-${idx}`} title={accordionTitle}>
+                <TechnicalDetails
+                  entries={[
+                    ['질문 ID', moduleData.queryId],
+                    ['모듈 ID', moduleData.moduleName],
+                  ]}
+                />
                 {(moduleData.metrics || []).map((metric, metricIndex) => (
                   <div key={metricIndex}>
                     <S.TableRow>
-                      <span>- {metric.name}</span>
+                      <span>- {metricText(metricIdentity(metric))}</span>
                       <span>
                         {metric.didEval && metric.score !== null
                           ? formatScore(metric as MetricScore & { score: number })
@@ -303,20 +321,21 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
           <div style={{ overflowY: 'auto', maxHeight: 400 }}>
             {availableMetrics.map((metricName, index) => (
               <div key={metricName}>
-                <p style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{metricName}</p>
+                <p style={{ fontSize: 13, overflowWrap: 'anywhere' }}>{seriesLabels[metricName] || '지표'}</p>
                 <ResponsiveContainer width="100%" height={180}>
                   <LineChart data={liveMetricsHistory} margin={{ top: 5, right: 20, left: 0, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis
                       dataKey="queryNumber"
                       stroke="#9CA3AF"
-                      label={{ value: '질문 순서', position: 'insideBottom', offset: -5 }}
+                      label={{ value: '결과 수신 순서', position: 'insideBottom', offset: -5 }}
                     />
                     <YAxis stroke="#9CA3AF" domain={['auto', 'auto']} />
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip content={<CustomTooltip seriesLabels={seriesLabels} />} />
                     <Line
                       type="linear"
                       dataKey={metricName}
+                      name={seriesLabels[metricName] || '지표'}
                       stroke={CHART_COLORS[index % CHART_COLORS.length]}
                       connectNulls={false}
                     />
@@ -340,11 +359,11 @@ export const TestQueryView: React.FC<TestQueryViewProps> = ({
           ) : (
             moduleMetrics.map((moduleData) => (
               <S.ModuleSection key={moduleData.moduleName}>
-                <S.ModuleTitle>{moduleData.moduleName}</S.ModuleTitle>
+                <S.ModuleTitle>{moduleText(moduleData.moduleName)}</S.ModuleTitle>
                 <S.MetricsGrid>
                   {moduleData.metrics.map((metric) => (
                     <S.MetricBox key={`${moduleData.moduleName}-${metric.name}`}>
-                      <S.MetricTitle>{metric.name}</S.MetricTitle>
+                      <S.MetricTitle>{metricText(metric.name)}</S.MetricTitle>
                       <ResponsiveContainer width="100%" height={100}>
                         <BarChart data={metric.distribution}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#374151" />

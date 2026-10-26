@@ -1,7 +1,10 @@
 import React from 'react';
+import { TechnicalDetails } from '../../components/TechnicalDetails';
+import { questionDisplayName, moduleDisplayName, terminationDisplayName, traceDisplayRows } from '../../utils/display';
 import { MetricDetails } from '../../components/MetricDetails';
 import type { EvaluationRun, MetricScore } from '../../globals/types';
 import type { Aggregation } from './analysis';
+import { metricIdentity } from './analysis';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LineChart,
@@ -28,6 +31,10 @@ import type {
 } from '../../globals/types';
 
 interface DashboardViewProps {
+  metricLabels: Record<string, string>;
+  moduleLabels: Record<string, string>;
+  selectedRunLabel: string;
+  baselineRunLabel: string;
   selectedRun?: EvaluationRun;
   baselineRun?: EvaluationRun;
   comparisons: ReturnType<typeof import('./analysis').compareModuleRuns>;
@@ -68,6 +75,10 @@ interface DashboardViewProps {
  */
 export const DashboardView: React.FC<DashboardViewProps> = ({
   kpiData,
+  metricLabels,
+  moduleLabels,
+  selectedRunLabel,
+  baselineRunLabel,
   zoomedMetric,
   selectedDate,
   selectedModule,
@@ -95,12 +106,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   aggregation,
   notEvaluated,
 }) => {
+  const metricText = (identity: string) => metricLabels[identity] || '지표';
+  const moduleText = (id: string) => moduleLabels[id] || moduleDisplayName(id);
+  const queryText = (id: string | undefined, text: string) => {
+    const index = selectedRun?.queryOutcomes?.findIndex((q) => q.queryId === id) ?? -1;
+    return index >= 0 ? questionDisplayName(text, index + 1) : text;
+  };
+  const traceRows = traceDisplayRows(
+    executionTrace,
+    moduleLabels,
+    selectedRun?.queryOutcomes?.map((query) => query.queryId),
+  );
   return (
     <S.DashboardContainer>
       <S.RunSummary aria-label="선택 실행 요약">
-        <p>
-          선택 실행: {selectedDate} · {selectedRun?.runId}
-        </p>
+        <p>선택 실행: {selectedRunLabel}</p>
         <p>
           질문 실행 {selectedRun?.pipelineHealth?.attempted ?? '미기록'}건 · 성공{' '}
           {selectedRun?.pipelineHealth?.succeeded ?? '미기록'} · 실패 {selectedRun?.pipelineHealth?.failed ?? '미기록'}{' '}
@@ -123,8 +143,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <p>
                 미도달 E2E 평가 {selectedRun.evaluationPlan.notReachedE2E}건 · 실행하지 않은 모듈의 설정 지표{' '}
                 {selectedRun.evaluationPlan.notReachedModuleMetrics}건 (
-                {selectedRun.evaluationPlan.notReachedModules.join(', ') || '없음'}). 비활성 분기일 수 있으므로 미평가
-                실패와 구분합니다.
+                {selectedRun.evaluationPlan.notReachedModules.map(moduleText).join(', ') || '없음'}). 비활성 분기일 수
+                있으므로 미평가 실패와 구분합니다.
               </p>
             )}
             {selectedRun?.timing && (
@@ -136,6 +156,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
         </details>
+        <TechnicalDetails
+          entries={[
+            ['실행 ID', selectedRun?.runId],
+            ['원본 시각 키', selectedRun?.timestamp],
+            ['구성 식별자', configFingerprint],
+            ['선택 모듈 ID', selectedModule],
+          ]}
+        />
       </S.RunSummary>
       <S.KpiCardWrapper aria-label="선택 실행의 평가 지표 요약">
         <KPICard title="Evaluated Metrics" value={kpiData.evaluatedMetrics} />
@@ -152,21 +180,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             .map((q) => (
               <S.QueryItem key={q.queryId}>
                 <S.QueryText>
-                  {q.query} · {q.status === 'failed' ? '실패' : '상태 미기록'}
+                  {queryText(q.queryId, q.query)} · {q.status === 'failed' ? '실패' : '상태 미기록'}
                 </S.QueryText>
-                <S.QueryInfoText>
-                  {q.queryId} · 종료 이유: {q.reason || '미기록'}
-                </S.QueryInfoText>
+                <S.QueryInfoText>종료 이유: {terminationDisplayName(q.reason)}</S.QueryInfoText>
+                <TechnicalDetails
+                  entries={[
+                    ['질문 ID', q.queryId],
+                    ['종료 코드', q.reason],
+                  ]}
+                />
               </S.QueryItem>
             ))}
         </S.ChartBox>
       )}
       {baselineRun && (
         <S.ChartBox>
-          <S.BoxTitleH3>동일 질문의 마지막 실행 비교 · {selectedModule}</S.BoxTitleH3>
+          <S.BoxTitleH3>동일 질문의 마지막 실행 비교 · {moduleText(selectedModule)}</S.BoxTitleH3>
           <S.QueryInfoText>
-            기준: {baselineRun.date} → 선택: {selectedDate}. 각 지표의 판정자·버전·설정이 같고 양쪽 평가가 성공한 질문만
-            차이를 계산합니다. 양수·음수의 의미는 지표 방향에 따라 다릅니다.
+            기준: {baselineRunLabel} → 선택: {selectedRunLabel}. 각 지표의 판정자·버전·설정이 같고 양쪽 평가가 성공한
+            질문만 차이를 계산합니다. 양수·음수의 의미는 지표 방향에 따라 다릅니다.
           </S.QueryInfoText>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
@@ -183,7 +215,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {comparisons.map((row) => (
                   <tr key={row.identity}>
                     <td style={{ padding: '8px 12px 8px 0', overflowWrap: 'anywhere' }}>
-                      {row.identity}
+                      {metricText(row.identity)}
+                      <TechnicalDetails entries={[['지표 내부 식별자', row.identity]]} />
                       {!row.evaluatorVerified && (
                         <small style={{ display: 'block' }}>판정자 동일성 미확인 / 비교 불가</small>
                       )}
@@ -224,6 +257,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       key={moduleName}
                       type="monotone"
                       dataKey={moduleName}
+                      name={moduleText(moduleName)}
                       stroke={moduleColors[index % moduleColors.length]}
                       strokeWidth={2}
                       dot={{
@@ -252,8 +286,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <S.ChartBox>
             <S.BoxHeader>
               <S.BoxTitle
-                title={`${selectedModule} on ${selectedDate}`}
-              >{`${selectedModule} on ${selectedDate}`}</S.BoxTitle>
+                title={`${moduleText(selectedModule)} · ${selectedRunLabel}`}
+              >{`${moduleText(selectedModule)} · ${selectedRunLabel}`}</S.BoxTitle>
             </S.BoxHeader>
             <S.ScrollableContent>
               {metricDistributionData.length > 0 ? (
@@ -264,9 +298,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     style={{ borderRadius: '0.5rem', padding: '0.5rem 1rem', backgroundColor: '#374151' }}
                   >
                     <S.BoxHeader style={{ marginBottom: '0.5rem' }}>
-                      <S.BoxTitleH3>{metric.metricName}</S.BoxTitleH3>
+                      <S.BoxTitleH3>{metricText(metric.metricName)}</S.BoxTitleH3>
                       <S.IconButton
-                        aria-label={`${metric.metricName} 상세 보기`}
+                        aria-label={`${metricText(metric.metricName)} 상세 보기`}
                         onClick={() => handleZoomClick(metric.metricName)}
                       >
                         <Expand size={16} />
@@ -317,8 +351,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div style={{ padding: '1rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <S.BoxHeader>
                   <S.BoxTitle
-                    title={`[Zoomed] ${zoomedMetric} on ${selectedDate}`}
-                  >{`[Zoomed] ${zoomedMetric} on ${selectedDate}`}</S.BoxTitle>
+                    title={`${metricText(zoomedMetric)} · ${selectedRunLabel}`}
+                  >{`${metricText(zoomedMetric)} · ${selectedRunLabel}`}</S.BoxTitle>
                   <S.IconButton aria-label="상세 닫기" onClick={handleZoomOut}>
                     <ArrowLeft size={18} />
                   </S.IconButton>
@@ -354,16 +388,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {detailedQueryData?.map((q, i) => (
                         <S.QueryItem key={i}>
                           <S.QueryText title={q.query}>
-                            질문: {q.query} · {q.queryId}
+                            {queryText(q.queryId, q.query)}
                             {q.executionIndex ? ` · 실행 ${q.executionIndex}` : ''}
                           </S.QueryText>
                           <S.ScoreWrapper>
-                            <S.MetricName>{zoomedMetric}</S.MetricName>
+                            <S.MetricName>{metricText(zoomedMetric)}</S.MetricName>
                             <S.ScoreText>
                               {q.score.toPrecision(4)} {q.unit}
                             </S.ScoreText>
                           </S.ScoreWrapper>
                           <S.QueryInfoText>답변: {q.answer || '답변 없음'}</S.QueryInfoText>
+                          <TechnicalDetails entries={[['질문 ID', q.queryId]]} />
                           {q.metric && <MetricDetails metric={q.metric} />}
                         </S.QueryItem>
                       ))}
@@ -384,7 +419,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {notEvaluated.map((item, i) => (
                 <S.QueryItem key={i}>
                   <S.QueryText>
-                    {item.query} · {item.metric.name}
+                    {queryText(item.queryId, item.query)} · {metricText(metricIdentity(item.metric))}
                   </S.QueryText>
                   <MetricDetails metric={item.metric} />
                 </S.QueryItem>
@@ -399,22 +434,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <S.MainChartWrapper>
             <S.ChartBox>
               <S.BoxTitleH3>Observed evidence</S.BoxTitleH3>
-              <S.QueryInfoText>
-                Runtime facts only. Configuration: {configFingerprint || 'legacy / unavailable'}
-              </S.QueryInfoText>
+              <S.QueryInfoText>이 실행에 기록된 관측 근거입니다.</S.QueryInfoText>
               <S.ScrollableContent style={{ height: '220px' }}>
                 {diagnosticObservations.length === 0 ? (
                   <S.NoDataText>기록된 진단 항목이 없습니다. 진단 미기록과 오류가 없다는 판단은 다릅니다.</S.NoDataText>
                 ) : (
                   diagnosticObservations.map((observation, index) => (
                     <S.QueryItem key={`${observation.code}-${index}`}>
-                      <S.QueryText>
-                        {observation.query} · {observation.code}
-                      </S.QueryText>
+                      <S.QueryText>{observation.query} · 관측 기록</S.QueryText>
                       <S.QueryInfoText>{observation.message}</S.QueryInfoText>
                       <S.QueryInfoText>
-                        {[observation.stage, observation.module, observation.metric].filter(Boolean).join(' · ')}
+                        {[observation.module ? moduleText(observation.module) : '', observation.metric]
+                          .filter(Boolean)
+                          .join(' · ')}
                       </S.QueryInfoText>
+                      <TechnicalDetails
+                        entries={[
+                          ['관측 코드', observation.code],
+                          ['단계 구분', observation.stage],
+                          ['모듈 ID', observation.module],
+                          ['실패 유형', observation.failureType],
+                        ]}
+                      />
                     </S.QueryItem>
                   ))
                 )}
@@ -461,23 +502,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {executionTrace.length === 0 ? (
               <S.NoDataText>Execution trace is unavailable for this legacy run.</S.NoDataText>
             ) : (
-              executionTrace.map((event) => (
-                <S.QueryItem key={`${event.queryId}-${event.executionId}`}>
-                  <S.QueryText>
-                    {event.query} · {event.moduleId}#{event.executionIndex} · {event.status}
-                  </S.QueryText>
-                  <S.QueryInfoText>
-                    {event.executionId} · parents: {event.parentExecutionIds.join(', ') || 'root'} · next:{' '}
-                    {event.nextModules.join(', ') || 'none'}
-                  </S.QueryInfoText>
-                  <S.QueryInfoText>
-                    모듈 실행 시간:{' '}
-                    {event.latencySeconds === null ? 'N/A' : `${(event.latencySeconds * 1000).toFixed(2)} ms`}
-                    {event.failureType ? ` · failure: ${event.failureType}` : ''}
-                    {event.revisitCount > 0 ? ` · revisit ${event.revisitCount}` : ''}
-                  </S.QueryInfoText>
-                </S.QueryItem>
-              ))
+              traceRows.map(
+                ({ event, questionLabel, stepLabel, moduleLabel, parentLabels, nextLabels, statusLabel }) => (
+                  <S.QueryItem key={`${event.queryId}-${event.executionId}`}>
+                    <S.QueryText>
+                      {questionLabel} · {moduleLabel} · {statusLabel}
+                    </S.QueryText>
+                    <S.QueryInfoText>
+                      {stepLabel} · 이전: {parentLabels.join(', ') || '시작'} · 다음: {nextLabels.join(', ') || '종료'}
+                    </S.QueryInfoText>
+                    <S.QueryInfoText>
+                      모듈 실행 시간:{' '}
+                      {event.latencySeconds === null ? '미기록' : `${(event.latencySeconds * 1000).toFixed(2)} ms`}
+                      {event.revisitCount > 0 ? ` · 재방문 ${event.revisitCount}회` : ''}
+                    </S.QueryInfoText>
+                    <TechnicalDetails
+                      entries={[
+                        ['질문 ID', event.queryId],
+                        ['실행 단계 ID', event.executionId],
+                        ['부모 실행 ID', event.parentExecutionIds],
+                        ['모듈 ID', event.moduleId],
+                        ['다음 모듈 ID', event.nextModules],
+                        ['실패 유형', event.failureType],
+                      ]}
+                    />
+                  </S.QueryItem>
+                ),
+              )
             )}
           </S.ScrollableContent>
         </S.ChartBox>
@@ -490,7 +541,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <S.GridContainer style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))' }}>
           {Object.entries(metricPerformanceBreakdownData).map(([metricName, data]) => (
             <S.ChartBox key={metricName}>
-              <S.BoxTitleH3 style={{ marginBottom: '0.5rem' }}>{metricName}</S.BoxTitleH3>
+              <S.BoxTitleH3 style={{ marginBottom: '0.5rem' }}>{metricText(metricName)}</S.BoxTitleH3>
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={data}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
@@ -508,6 +559,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             key={moduleName}
                             type="monotone"
                             dataKey={moduleName}
+                            name={moduleText(moduleName)}
                             stroke={moduleColors[colorIdx % moduleColors.length]}
                             strokeWidth={2}
                             connectNulls={false}

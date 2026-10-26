@@ -16,8 +16,8 @@ function loadTS(relativePath, globals = {}) {
   const localRequire = (id) => {
     if (id.startsWith('.')) {
       const full = path.resolve(path.dirname(file), id);
-      for (const extension of ['.ts', '.tsx'])
-        if (fs.existsSync(full + extension)) return loadTS(full + extension, globals);
+      for (const candidate of [full + '.ts', full + '.tsx', path.join(full, 'index.ts'), path.join(full, 'index.tsx')])
+        if (fs.existsSync(candidate)) return loadTS(candidate, globals);
     }
     return require(id);
   };

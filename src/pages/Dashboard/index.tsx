@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { dashboardResultState, appLoadingState } from '../../globals/recoil/atoms';
 import { socket } from '../../apis/socket';
@@ -17,6 +17,7 @@ import {
   compareModuleRuns,
 } from './analysis';
 import type { EvaluationRun } from '../../globals/types';
+import { metricDisplayCatalog, runDisplayNames, runKey, moduleDisplayNames } from '../../utils/display';
 
 export const DashboardPage: React.FC = () => {
   const runs = useRecoilValue(dashboardResultState),
@@ -80,6 +81,15 @@ export const DashboardPage: React.FC = () => {
       socket.off('connection-state', status);
     };
   }, [setRuns, setLoading]);
+  const metricCatalog = useRef(metricDisplayCatalog);
+  const metricLabels = useMemo(
+    () =>
+      metricCatalog.current.labelsFor(
+        runs.flatMap((run) => run.modules.flatMap((module) => module.queries.flatMap((query) => query.metrics))),
+      ),
+    [runs],
+  );
+  const runLabels = useMemo(() => runDisplayNames(runs), [runs]);
   const selectedRun = runs.find((r) => (r.runId || r.timestamp) === selectedTimestamp) || runs.at(-1);
   const module = selectedRun?.modules.find((m) => m.moduleName === selectedModule) || selectedRun?.modules[0];
   const moduleName = module?.moduleName || '';
@@ -91,17 +101,28 @@ export const DashboardPage: React.FC = () => {
     () => Array.from(new Set(runs.flatMap((r) => r.modules.map((m) => m.moduleName)))),
     [runs],
   );
+  const moduleLabels = useMemo(
+    () =>
+      moduleDisplayNames([
+        ...allModuleNames,
+        ...runs.flatMap((run) => run.executionTrace.flatMap((event) => [event.moduleId, ...event.nextModules])),
+      ]),
+    [allModuleNames, runs],
+  );
   const modulePerformanceData = useMemo(
     () =>
       runs.map((run) => {
-        const entry: any = { date: run.date, timestamp: run.runId || run.timestamp };
+        const entry: any = {
+          date: runLabels[runKey(run)]?.split(' · ')[0] || '실행',
+          timestamp: run.runId || run.timestamp,
+        };
         allModuleNames.forEach((name) => {
           const metrics = run.modules.find((m) => m.moduleName === name)?.queries.flatMap((q) => q.metrics) || [];
           entry[name] = metrics.length ? (metrics.filter(isEvaluatedMetric).length / metrics.length) * 100 : null;
         });
         return entry;
       }),
-    [runs, allModuleNames],
+    [runs, allModuleNames, runLabels],
   );
   const metricPerformanceBreakdownData = useMemo(() => {
     const identities = Array.from(
@@ -110,7 +131,7 @@ export const DashboardPage: React.FC = () => {
     const output: Record<string, any[]> = {};
     identities.forEach((identity) => {
       output[identity] = runs.map((run) => {
-        const entry: any = { date: run.date };
+        const entry: any = { date: runLabels[runKey(run)]?.split(' · ')[0] || '실행' };
         allModuleNames.forEach((name) => {
           const samples = metricSamples(
             run.modules.find((m) => m.moduleName === name)?.queries || [],
@@ -123,7 +144,7 @@ export const DashboardPage: React.FC = () => {
       });
     });
     return output;
-  }, [runs, allModuleNames, aggregation]);
+  }, [runs, allModuleNames, aggregation, runLabels]);
   const identities = Array.from(new Set(module?.queries.flatMap((q) => q.metrics.map(metricIdentity)) || []));
   const metricDistributionData = identities.map((identity) => {
     const samples = metricSamples(module?.queries || [], identity, aggregation);
@@ -178,7 +199,7 @@ export const DashboardPage: React.FC = () => {
           >
             {runs.map((r) => (
               <option key={r.runId || r.timestamp} value={r.runId || r.timestamp}>
-                {r.date} · {r.runId}
+                {runLabels[runKey(r)]}
               </option>
             ))}
           </select>
@@ -194,7 +215,7 @@ export const DashboardPage: React.FC = () => {
           >
             {baselineCandidates.map((r) => (
               <option key={r.runId || r.timestamp} value={r.runId || r.timestamp}>
-                {r.date} · {r.runId}
+                {runLabels[runKey(r)]}
               </option>
             ))}
           </select>
@@ -212,7 +233,9 @@ export const DashboardPage: React.FC = () => {
             }}
           >
             {selectedRun?.modules.map((m) => (
-              <option key={m.moduleName}>{m.moduleName}</option>
+              <option key={m.moduleName} value={m.moduleName}>
+                {moduleLabels[m.moduleName] || '모듈'}
+              </option>
             ))}
           </select>
         </label>
@@ -262,6 +285,10 @@ export const DashboardPage: React.FC = () => {
         </p>
       ) : (
         <DashboardView
+          metricLabels={metricLabels}
+          moduleLabels={moduleLabels}
+          selectedRunLabel={selectedRun ? runLabels[runKey(selectedRun)] : ''}
+          baselineRunLabel={baselineRun ? runLabels[runKey(baselineRun)] : ''}
           kpiData={selectedKpis(selectedRun)}
           comparisons={comparisons}
           baselineRun={baselineRun}
