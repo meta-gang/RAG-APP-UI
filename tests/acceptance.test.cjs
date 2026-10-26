@@ -421,3 +421,100 @@ test('a valid singleton flow still has a visible topology node', () => {
   const { layoutGraph } = loadTS('src/pages/TestQuery/graph.ts');
   assert.equal(layoutGraph([], ['only']).nodes[0].id, 'only');
 });
+
+test('invalid metric names and units never turn into successful generic scores', () => {
+  for (const metadata of [
+    { metric: {}, unit: '' },
+    { metric: '', unit: '' },
+    { metric: '   ', unit: '' },
+    { metric: 'X', unit: {} },
+    { metric: 'X', unit: null },
+    { metric: 'X', unit: 1 },
+  ]) {
+    const value = transform.normalizeMetric({ ...metadata, score: 1, did_eval: true });
+    assert.equal(value.didEval, false);
+    assert.equal(value.score, null);
+    assert.equal(value.failure.type, 'invalid_metric_metadata');
+  }
+  const zero = transform.normalizeMetric({ metric: 'X', unit: '', score: 0, did_eval: true });
+  assert.equal(zero.didEval, true);
+  assert.equal(zero.score, 0);
+});
+test('scope preserves only validated execution ID mappings alongside scalar metadata', () => {
+  const bindings = { 'retrieval.ret_docs': 'exec-2', 'answer.gen': 'exec-3' };
+  const value = transform.normalizeMetric({
+    metric: 'X',
+    unit: '',
+    score: 0,
+    did_eval: true,
+    scope: { documents_total: 2, input_execution_ids: bindings, unrecognized_nested: { discard: true } },
+  });
+  assert.deepEqual(value.scope.input_execution_ids, bindings);
+  assert.equal(value.scope.documents_total, 2);
+  assert.equal(value.scope.unrecognized_nested, undefined);
+  for (const invalid of [
+    'exec-2',
+    ['exec-2'],
+    { 'retrieval.ret_docs': 5 },
+    { 'retrieval.ret_docs': 'exec-2', 'answer.gen': null },
+  ])
+    assert.equal(
+      transform.normalizeMetric({ metric: 'X', score: 1, did_eval: true, scope: { input_execution_ids: invalid } })
+        .scope.input_execution_ids,
+      undefined,
+    );
+});
+test('document evidence follows recorded metric input execution, including non-ancestor inputs', () => {
+  const metric = {
+    metric: 'X',
+    unit: '',
+    score: 0,
+    did_eval: true,
+    evaluator: { parameter_sources: ['retrieval.ret_docs', 'generation.gen'] },
+    scope: { input_execution_ids: { 'retrieval.ret_docs': 'exec-1' } },
+  };
+  const state = {
+    query: 'same',
+    gen: 'answer',
+    snapshots: {
+      retrieval: [
+        { data: { ret_docs: ['first context'] }, performances: [] },
+        { data: { ret_docs: ['second context'] }, performances: [] },
+      ],
+      generation: [{ data: { gen: 'answer' }, performances: [metric] }],
+    },
+    execution_trace: [
+      {
+        execution_id: 'exec-1',
+        module_id: 'retrieval',
+        execution_index: 1,
+        parent_execution_ids: [],
+        status: 'completed',
+      },
+      {
+        execution_id: 'exec-2',
+        module_id: 'retrieval',
+        execution_index: 2,
+        parent_execution_ids: [],
+        status: 'completed',
+      },
+      {
+        execution_id: 'exec-3',
+        module_id: 'generation',
+        execution_index: 1,
+        parent_execution_ids: ['exec-2'],
+        status: 'completed',
+      },
+    ],
+  };
+  const score = () =>
+    transform.transformData({ states: { q: state } }).modules.find((module) => module.moduleName === 'generation')
+      .queries[0].metrics[0];
+  assert.deepEqual(score().sourceDocuments, ['first context']);
+  metric.scope.input_execution_ids['retrieval.ret_docs'] = 'missing-execution';
+  assert.equal(score().sourceDocuments, undefined);
+  metric.scope.input_execution_ids = 'malformed';
+  assert.equal(score().sourceDocuments, undefined);
+  delete metric.scope.input_execution_ids;
+  assert.deepEqual(score().sourceDocuments, ['second context']);
+});
